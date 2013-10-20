@@ -1,10 +1,10 @@
 
 ###########################################################################
 
-MYLIB=libzc
+MYLIB=libxyz
 MYVER=1.0.0
 TARGET=$(MYLIB)-$(MYVER).so
-INCDIR=/usr/local/include/zc
+INCDIR=/usr/local/include/xyz
 LIBDIR=/usr/local/lib
 INSTALL=install -m 0644 -o root -g wheel 
 
