@@ -3,28 +3,28 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "mpool.h"
-#include "list.h"
+#include "xyz_mpool.h"
+#include "xyz_list.h"
 
-struct list_node_t
+struct xyz_list_node_t
 {
 	void *data;
-	struct list_node_t *prev, *next;
+	struct xyz_list_node_t *prev, *next;
 };
 
-struct list_t
+struct xyz_list_t
 {
 	char label[32];
-	struct mpool_t *mp;
+	struct xyz_mpool_t *mp;
 	int count;
-	struct list_node_t *head, *tail;
+	struct xyz_list_node_t *head, *tail;
 };
 
-struct list_t *list_create(char *label)
+struct xyz_list_t *xyz_list_create(char *label)
 {
-	struct list_t *l;
+	struct xyz_list_t *l;
 
-	l = malloc(sizeof(struct list_t));
+	l = malloc(sizeof(struct xyz_list_t));
 	if(l == NULL) {
 		return NULL;
 	}
@@ -33,7 +33,7 @@ struct list_t *list_create(char *label)
 		strncpy(l->label, label, sizeof(l->label)-1);
 	}
 
-	l->mp = mpool_create(l->label, sizeof(struct list_node_t));
+	l->mp = xyz_mpool_create(l->label, sizeof(struct xyz_list_node_t));
 	if(l->mp == NULL) {
 		free(l);
 		return NULL;
@@ -45,18 +45,18 @@ struct list_t *list_create(char *label)
 	return l;
 }
 
-void list_clear(struct list_t *list)
+void xyz_list_clear(struct xyz_list_t *list)
 {
 	if(list == NULL) {
 		return;
 	}
 
-	struct list_node_t *ln = list->head;
+	struct xyz_list_node_t *ln = list->head;
 
 	while(list->head) {
 		ln = list->head;
 		list->head = list->head->next;
-		mpool_free(list->mp, ln);
+		xyz_mpool_free(list->mp, ln);
 	}
 
 	list->count = 0;
@@ -65,28 +65,28 @@ void list_clear(struct list_t *list)
 	return;
 }
 
-void list_destroy(struct list_t *list)
+void xyz_list_destroy(struct xyz_list_t *list)
 {
 	if(list == NULL) {
 		return;
 	}
 
-	list_clear(list);
+	xyz_list_clear(list);
 
-	mpool_destroy(list->mp);
+	xyz_mpool_destroy(list->mp);
 
 	free(list);
 
 	return;
 }
 
-int list_push(struct list_t *list, void *data)
+int xyz_list_push(struct xyz_list_t *list, void *data)
 {
 	if(list == NULL || data == NULL) {
 		return -1;
 	}
 
-	struct list_node_t *ln = mpool_malloc(list->mp);
+	struct xyz_list_node_t *ln = xyz_mpool_malloc(list->mp);
 	if(ln == NULL) {
 		return -1;
 	}
@@ -105,13 +105,13 @@ int list_push(struct list_t *list, void *data)
 	return 0;
 }
 
-void *list_pop(struct list_t *list)
+void *xyz_list_pop(struct xyz_list_t *list)
 {
 	if(list == NULL) {
 		return NULL;
 	}
 
-	struct list_node_t *ln = list->head;
+	struct xyz_list_node_t *ln = list->head;
 
 	if(list->head == list->tail) {
 		list->head = list->tail = NULL;
@@ -123,18 +123,18 @@ void *list_pop(struct list_t *list)
 	list->count--;
 
 	void *p = list->head->data;
-	mpool_free(list->mp, ln);
+	xyz_mpool_free(list->mp, ln);
 
 	return p;
 }
 
-void *list_pushback(struct list_t *list, void *data)
+void *xyz_list_pushback(struct xyz_list_t *list, void *data)
 {
 	if(list == NULL || data == NULL) {
 		return NULL;
 	}
 
-	struct list_node_t *ln = mpool_malloc(list->mp);
+	struct xyz_list_node_t *ln = xyz_mpool_malloc(list->mp);
 	if(ln == NULL) {
 		return NULL;
 	}
@@ -153,13 +153,13 @@ void *list_pushback(struct list_t *list, void *data)
 	return 0;
 }
 
-void *list_popback(struct list_t *list)
+void *xyz_list_popback(struct xyz_list_t *list)
 {
 	if(list == NULL) {
 		return;
 	}
 
-	struct list_node_t *ln = list->tail;
+	struct xyz_list_node_t *ln = list->tail;
 
 	if(list->head == list->tail) {
 		list->head = list->tail = NULL;
@@ -171,15 +171,15 @@ void *list_popback(struct list_t *list)
 	list->count--;
 
 	void *p = list->tail->data;
-	mpool_free(list->mp, ln);
+	xyz_mpool_free(list->mp, ln);
 
 	return p;
 }
 
-// typedef int (*list_foreach_t)(void *data, void *arg);
-int list_foreach(struct list_t *list, list_foreach_t func, void *arg, void **data)
+// typedef int (*xyz_list_foreach_t)(void *data, void *arg);
+int xyz_list_foreach(struct xyz_list_t *list, xyz_list_foreach_t func, void *arg, void **data)
 {
-	struct list_node_t *ln;
+	struct xyz_list_node_t *ln;
 	int ret;
 
 	if(list == NULL || func == NULL) {
@@ -202,13 +202,13 @@ int list_foreach(struct list_t *list, list_foreach_t func, void *arg, void **dat
 	return 0;
 }
 
-int list_find(struct list_t *list, void *data)
+int xyz_list_find(struct xyz_list_t *list, void *data)
 {
 	if(list == NULL || data == NULL) {
 		return -1;
 	}
 
-	struct list_node_t *ln = list->head;
+	struct xyz_list_node_t *ln = list->head;
 
 	while(ln) {
 		if(ln->data == data)
@@ -220,16 +220,16 @@ int list_find(struct list_t *list, void *data)
 	return 0;
 }
 
-int list_insert(struct list_t *list, void *data, void *newdata)
+int xyz_list_insert(struct xyz_list_t *list, void *data, void *newdata)
 {
 	if(list == NULL || data == NULL || newdata == NULL) {
 		return -1;
 	}
 
-	struct list_node_t *lntmp = list->head;
+	struct xyz_list_node_t *lntmp = list->head;
 	while(lntmp) {
 		if(lntmp->data == data) {
-			struct list_node_t *ln = mpool_malloc(list->mp);
+			struct xyz_list_node_t *ln = xyz_mpool_malloc(list->mp);
 			if(ln == NULL) {
 				return -1;
 			}
@@ -255,13 +255,13 @@ int list_insert(struct list_t *list, void *data, void *newdata)
 	return 0;
 }
 
-int list_delete(struct list_t *list, void *data)
+int xyz_list_delete(struct xyz_list_t *list, void *data)
 {
 	if(list == NULL || data == NULL) {
 		return -1;
 	}
 
-	struct list_node_t *ln = list->head;
+	struct xyz_list_node_t *ln = list->head;
 	while(ln) {
 		if(ln->data == data) {
 			if(ln == list->head) {
@@ -283,7 +283,7 @@ int list_delete(struct list_t *list, void *data)
 				ln->next->prev = ln->prev;
 			}
 
-			mpool_free(list->mp, ln);
+			xyz_mpool_free(list->mp, ln);
 			list->count--;
 
 			return 1;
@@ -295,7 +295,7 @@ int list_delete(struct list_t *list, void *data)
 	return 0;
 }
 
-void list_stat(struct list_t *list, int ex)
+void xyz_list_stat(struct xyz_list_t *list, int ex)
 {
 	if(list == NULL) {
 		return;
@@ -306,67 +306,70 @@ void list_stat(struct list_t *list, int ex)
 	printf("count : %d\n", list->count);
 	printf("head : %p , tail : %p\n", list->head, list->tail);
 
-	struct list_node_t *ln = list->head;
+	struct xyz_list_node_t *ln = list->head;
 	while(ln) {
 		printf("prev : %p , next : %p , data : %p:%s\n", ln->prev, ln->next, ln->data, ln->data);
 		ln = ln->next;
 	}
 
 	if(ex) {
-		mpool_stat(list->mp, 0);
+		xyz_mpool_stat(list->mp, 0);
 	}
 
 	return;
 }
 
-/////////////////////////////////////////////////
-/*
+//////////////////////////////////////////////////////////////////////////////
+
+#if 0
 int main(void)
 {
 	char *str[8] = {"aaa", "bbb", "ccc", "ddd", "eee", "fff", "ggg"};
 
-	struct list_t *list = list_create("test list");
+	struct xyz_list_t *list = xyz_list_create("test list");
 
 	printf("* append 123, 456\n");
-	list_pushback(list,"123");
-	list_pushback(list,"456");
-	list_stat(list, 0);
-	list_clear(list);
+	xyz_list_pushback(list,"123");
+	xyz_list_pushback(list,"456");
+	xyz_list_stat(list, 0);
+	xyz_list_clear(list);
 
 	printf(" * push 123, 456\n");
-	list_push(list, "123");
-	list_push(list, "456");
-	list_stat(list, 0);
+	xyz_list_push(list, "123");
+	xyz_list_push(list, "456");
+	xyz_list_stat(list, 0);
 	//list_clear(list);
 
 	printf(" * pop one\n");
-	list_pop(list);
-	list_stat(list, 0);
-	list_clear(list);
+	xyz_list_pop(list);
+	xyz_list_stat(list, 0);
+	xyz_list_clear(list);
 
 	int i;
 	for(i=0; i<8; i++) {
 		printf("* append %s\n", str[i]);
-		list_pushback(list, str[i]);
-		list_stat(list, 0);
+		xyz_list_pushback(list, str[i]);
+		xyz_list_stat(list, 0);
 	}
 
     printf("* back one\n");
-	list_popback(list);
-	list_stat(list, 0);
+	xyz_list_popback(list);
+	xyz_list_stat(list, 0);
 
-	list_find(list, str[3]);
+	xyz_list_find(list, str[3]);
 	printf("* insert 456789 after %s\n", str[3]);
-	list_insert(list, str[3], "456789");
-	list_stat(list, 0);
+	xyz_list_insert(list, str[3], "456789");
+	xyz_list_stat(list, 0);
 
 	printf("* delete %s\n", str[3]);
-	list_delete(list,str[3]);
-	list_stat(list, 0);
+	xyz_list_delete(list,str[3]);
+	xyz_list_stat(list, 0);
 
-	list_destroy(list);
+	xyz_list_destroy(list);
 
 	return 0;
 }
-*/
+
+#endif 
+
 

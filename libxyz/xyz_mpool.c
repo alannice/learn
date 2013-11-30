@@ -3,11 +3,11 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "mpool.h"
+#include "xyz_mpool.h"
 
 #define BLOCK_DEEP 32
 
-struct mpool_t {
+struct xyz_mpool_t {
 	char label[32];
 	int data_size;
 
@@ -18,13 +18,13 @@ struct mpool_t {
 	int block_count;
 };
 
-struct mpool_t *mpool_create(char *label, int size)
+struct xyz_mpool_t *xyz_mpool_create(char *label, int size)
 {
 	if(size <= 2) {
 		return NULL;
 	}
 
-	struct mpool_t *mp = malloc(sizeof(struct mpool_t));
+	struct xyz_mpool_t *mp = malloc(sizeof(struct xyz_mpool_t));
 	if(mp==NULL) {
 		return NULL;
 	}
@@ -46,7 +46,7 @@ struct mpool_t *mpool_create(char *label, int size)
 	return mp;
 }
 
-void mpool_destroy(struct mpool_t *mp)
+void xyz_mpool_destroy(struct xyz_mpool_t *mp)
 {
 	char *p;
 
@@ -66,7 +66,7 @@ void mpool_destroy(struct mpool_t *mp)
 	return;
 }
 
-int mpool_grow(struct mpool_t *mp)
+int xyz_mpool_grow(struct xyz_mpool_t *mp)
 {
 	int i;
 
@@ -97,7 +97,7 @@ int mpool_grow(struct mpool_t *mp)
 	return 0;
 }
 
-void *mpool_malloc(struct mpool_t *mp)
+void *xyz_mpool_malloc(struct xyz_mpool_t *mp)
 {	char *p;
 
 	if(mp == NULL) {
@@ -105,7 +105,7 @@ void *mpool_malloc(struct mpool_t *mp)
 	}
 
 	if(mp->free_list == NULL) {
-		mpool_grow(mp);
+		xyz_mpool_grow(mp);
 	}
 
 	if(mp->free_list == NULL) {
@@ -121,7 +121,7 @@ void *mpool_malloc(struct mpool_t *mp)
 	return p;
 }
 
-void mpool_free(struct mpool_t *mp, void *p)
+void xyz_mpool_free(struct xyz_mpool_t *mp, void *p)
 {
 	if(mp == NULL || p == NULL) {
 		return;
@@ -134,7 +134,7 @@ void mpool_free(struct mpool_t *mp, void *p)
 	return;
 }
 
-void mpool_stat(struct mpool_t *mp, int dx)
+void xyz_mpool_stat(struct xyz_mpool_t *mp, int v)
 {
 	char *p;
 
@@ -145,7 +145,7 @@ void mpool_stat(struct mpool_t *mp, int dx)
 	printf("block_size:%d\n", mp->data_size*BLOCK_DEEP+sizeof(char *));
 	printf("block_count:%d\n", mp->block_count);
 
-	if(dx) {
+	if(v) {
 		printf("free_list display:\n");
 		p = mp->free_list;
 		while(p) {
@@ -166,40 +166,42 @@ void mpool_stat(struct mpool_t *mp, int dx)
 	return;
 }
 
-/////////////////////////////////////////////////
-/*
+/////////////////////////////////////////////////////////////////////////////
+
+#if 0
 int main(void)
 {
-	struct mpool_t *mp;
+	struct xyz_mpool_t *mp;
 	char *a[8000];
 	int i;
 
-	mp = mpool_create("test", 30);
+	mp = xyz_mpool_create("test", 30);
 
 	printf("test1----------------\n");
-	mpool_grow(mp);
-	mpool_stat(mp, 1);
+	xyz_mpool_grow(mp);
+	xyz_mpool_stat(mp, 1);
 
 	printf("test2----------------\n");
 	for(i=0; i<7890; i++) {
-		a[i] = mpool_malloc(mp);
+		a[i] = xyz_mpool_malloc(mp);
 	}
-	mpool_stat(mp, 0);
+	xyz_mpool_stat(mp, 0);
 
 	printf("test3----------------\n");
 	for(i=0; i<7800; i++) {
-		mpool_free(mp, a[i]);
+		xyz_mpool_free(mp, a[i]);
 	}
-	mpool_stat(mp, 0);
+	xyz_mpool_stat(mp, 0);
 
 	printf("test4----------------\n");
 	for(i=0; i<300; i++){
-		mpool_grow(mp);
+		xyz_mpool_grow(mp);
 	}
-	mpool_stat(mp, 0);
+	xyz_mpool_stat(mp, 0);
 
-	mpool_destroy(mp);
+	xyz_mpool_destroy(mp);
 
 	return 0;
 }
-*/
+#endif 
+

@@ -7,15 +7,15 @@
 #include <unistd.h>
 #include <errno.h>
 
-#include "buf.h"
+#include "xyz_buf.h"
 
-struct buf_t *buf_create(char *label, int size)
+struct xyz_buf_t *xyz_buf_create(char *label, int size)
 {
 	if(size <= 2) {
 		return NULL;
 	}
 
-	struct buf_t *p = malloc(sizeof(struct buf_t));
+	struct xyz_buf_t *p = malloc(sizeof(struct xyz_buf_t));
 	if(p == NULL) {
 		return NULL;
 	}
@@ -36,7 +36,7 @@ struct buf_t *buf_create(char *label, int size)
 	return p;
 }
 
-void buf_clear(struct buf_t *buf)
+void xyz_buf_clear(struct xyz_buf_t *buf)
 {
 	if(buf == NULL) {
 		return;
@@ -48,7 +48,7 @@ void buf_clear(struct buf_t *buf)
 	return;
 }
 
-void buf_destroy(struct buf_t *buf)
+void xyz_buf_destroy(struct xyz_buf_t *buf)
 {
 	if(buf == NULL) {
 		return;
@@ -60,7 +60,7 @@ void buf_destroy(struct buf_t *buf)
 	return;
 }
 
-int buf_add(struct buf_t *buf, char *data, int len)
+int xyz_buf_add(struct xyz_buf_t *buf, char *data, int len)
 {
 	if(buf == NULL || data == NULL || len <= 0) {
 		return -1;
@@ -77,7 +77,7 @@ int buf_add(struct buf_t *buf, char *data, int len)
 	return 0;
 }
 
-int buf_get(struct buf_t *buf, char *data, int len)
+int xyz_buf_get(struct xyz_buf_t *buf, char *data, int len)
 {
 	if(buf == NULL || data == NULL || len <= 0) {
 		return -1;
@@ -96,7 +96,7 @@ int buf_get(struct buf_t *buf, char *data, int len)
 	return l;
 }
 
-int buf_peek(struct buf_t *buf, char *data, int len)
+int xyz_buf_peek(struct xyz_buf_t *buf, char *data, int len)
 {
 	if(buf == NULL || data == NULL || len <= 0) {
 		return -1;
@@ -109,7 +109,7 @@ int buf_peek(struct buf_t *buf, char *data, int len)
 	return l;
 }
 
-int buf_read(struct buf_t *buf, int fd)
+int xyz_buf_read(struct xyz_buf_t *buf, int fd)
 {
 	int n;
 
@@ -134,7 +134,7 @@ int buf_read(struct buf_t *buf, int fd)
 	return n;
 }
 
-int buf_write(struct buf_t *buf, int fd)
+int xyz_buf_write(struct xyz_buf_t *buf, int fd)
 {
 	int i, n, m = 0;
 
@@ -159,7 +159,7 @@ int buf_write(struct buf_t *buf, int fd)
 	return m;
 }
 
-int buf_sprintf(struct buf_t *buf, char *fmt, ...)
+int xyz_buf_sprintf(struct xyz_buf_t *buf, char *fmt, ...)
 {
 	va_list vl;
 	int rv;
@@ -178,7 +178,7 @@ int buf_sprintf(struct buf_t *buf, char *fmt, ...)
 	return 0;
 }
 
-char *buf_data(struct buf_t *buf)
+char *xyz_buf_data(struct xyz_buf_t *buf)
 {
 	if(buf == NULL) {
 		return NULL;
@@ -187,7 +187,7 @@ char *buf_data(struct buf_t *buf)
 	return buf->data;
 }
 
-int buf_length(struct buf_t *buf)
+int xyz_buf_length(struct xyz_buf_t *buf)
 {
 	if(buf == NULL) {
 		return -1;
@@ -196,7 +196,7 @@ int buf_length(struct buf_t *buf)
 	return buf->len;
 }
 
-void buf_stat(struct buf_t *buf)
+void xyz_buf_stat(struct xyz_buf_t *buf)
 {
 	printf("------ buf stat ------\n");
 	printf("*** %s ***\n", buf->label);
@@ -209,7 +209,7 @@ void buf_stat(struct buf_t *buf)
 
 //-----------------------------------------------
 
-int buf_getline(struct buf_t *buf, char *data, int len)
+int xyz_buf_getline(struct xyz_buf_t *buf, char *data, int len)
 {
 	char *pos;
 
@@ -240,7 +240,7 @@ int buf_getline(struct buf_t *buf, char *data, int len)
 	return strlen(data);
 }
 
-int buf_getword(struct buf_t *buf, char *data, int len)
+int xyz_buf_getword(struct xyz_buf_t *buf, char *data, int len)
 {
 	int pos = 0;
 	int skip = 0;
@@ -272,46 +272,48 @@ int buf_getword(struct buf_t *buf, char *data, int len)
 	return pos;
 }
 
-/////////////////////////////////////////////////
-/*
+//////////////////////////////////////////////////////////////////////////////
+
+#if 0
 int main(void)
 {
-	struct buf_t *buf;
+	struct xyz_buf_t *buf;
 
-	buf = buf_create("test buf", 64);
+	buf = xyz_buf_create("test buf", 64);
 
-	buf_add(buf, "hello\n", 6);
-	buf_sprintf(buf, "world\n");
-	buf_sprintf(buf, "a %s b\n", "cc");
-	buf_write(buf, 1);
+	xyz_buf_add(buf, "hello\n", 6);
+	xyz_buf_sprintf(buf, "world\n");
+	xyz_buf_sprintf(buf, "a %s b\n", "cc");
+	xyz_buf_write(buf, 1);
 
 	printf("add hello, world\n");
-	buf_add(buf, "hello", 5);
-	buf_add(buf, "world", 5);
+	xyz_buf_add(buf, "hello", 5);
+	xyz_buf_add(buf, "world", 5);
 
-	buf_stat(buf);
+	xyz_buf_stat(buf);
 
 	printf("add a string\n");
-	buf_add(buf, "aa\nbb\ncc\r\ndd\r\n", 14);
-	buf_stat(buf);
+	xyz_buf_add(buf, "aa\nbb\ncc\r\ndd\r\n", 14);
+	xyz_buf_stat(buf);
 
 	printf("get a line\n");
 	char arr[128];
 	bzero(arr, 100);
-	buf_getline(buf, arr, 120);
+	xyz_buf_getline(buf, arr, 120);
 	printf("line:%s\n", arr);
-	buf_stat(buf);
+	xyz_buf_stat(buf);
 
 	printf("get a world\n");
 	bzero(arr, 100);
-	buf_getword(buf, arr, 120);
+	xyz_buf_getword(buf, arr, 120);
 	printf("word:%s\n", arr);
-	buf_stat(buf);
+	xyz_buf_stat(buf);
 
 	printf("buf write\n");
-	buf_write(buf, STDOUT_FILENO);
-	buf_stat(buf);
+	xyz_buf_write(buf, STDOUT_FILENO);
+	xyz_buf_stat(buf);
 
 	return 0;
 }
-*/
+#endif 
+

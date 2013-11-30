@@ -14,10 +14,10 @@ LDFLAGS=
 LIBS=
 
 
-SOURCE=buf.c  conf.c  event.c  list.c  log.c  mpool.c  sock.c 
-HEADER=buf.h  conf.h  event.h  list.h  log.h  mpool.h  sock.h
+SOURCE=xyz_buf.c  xyz_conf.c  xyz_event.c  xyz_list.c  xyz_log.c  xyz_mpool.c  xyz_sock.c 
+HEADER=xyz_buf.h  xyz_conf.h  xyz_event.h  xyz_list.h  xyz_log.h  xyz_mpool.h  xyz_sock.h
 
-OBJECT=buf.o conf.o event.o list.o log.o mpool.o sock.o 
+OBJECT=xyz_buf.o xyz_conf.o xyz_event.o xyz_list.o xyz_log.o xyz_mpool.o xyz_sock.o 
 
 .PHONY:all 
 
@@ -33,13 +33,13 @@ clean:
 
 install:
 	rm -rf $(INCDIR) && mkdir $(INCDIR)
-	$(INSTALL)  buf.h  $(INCDIR)/buf.h
-	$(INSTALL)  conf.h $(INCDIR)/conf.h
-	$(INSTALL)  event.h $(INCDIR)/event.h
-	$(INSTALL)  list.h  $(INCDIR)/list.h
-	$(INSTALL)  log.h   $(INCDIR)/log.h
-	$(INSTALL)  mpool.h $(INCDIR)/mpool.h
-	$(INSTALL)  sock.h  $(INCDIR)/sock.h
+	$(INSTALL)  xyz_buf.h  $(INCDIR)/xyz_buf.h
+	$(INSTALL)  xyz_conf.h $(INCDIR)/xyz_conf.h
+	$(INSTALL)  xyz_event.h $(INCDIR)/xyz_event.h
+	$(INSTALL)  xyz_list.h  $(INCDIR)/xyz_list.h
+	$(INSTALL)  xyz_log.h   $(INCDIR)/xyz_log.h
+	$(INSTALL)  xyz_mpool.h $(INCDIR)/xyz_mpool.h
+	$(INSTALL)  xyz_sock.h  $(INCDIR)/xyz_sock.h
 	$(INSTALL)  $(TARGET) $(LIBDIR)/$(TARGET)
 	rm -f $(LIBDIR)/$(MYLIB).so 
 	ln -s $(LIBDIR)/$(TARGET) $(LIBDIR)/$(MYLIB).so

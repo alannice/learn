@@ -27,22 +27,22 @@ level:
 #include <stdarg.h>
 #include <syslog.h>
 
-#include "log.h"
+#include "xyz_log.h"
 
-static int g_log_level;
+static int g_xyz_log_level;
 
-void log_open(const char* ident, int facility, int level)
+void xyz_log_open(const char* ident, int facility, int level)
 {
-	g_log_level = level;
+	g_xyz_log_level = level;
 
 	openlog(ident, LOG_PID, facility);
 
 	return;
 }
 
-void log_write(int level, const char* format, ...)
+void xyz_log_write(int level, const char* format, ...)
 {
-	if(level > g_log_level) {
+	if(level > g_xyz_log_level) {
 		return;
 	}
 
@@ -54,27 +54,29 @@ void log_write(int level, const char* format, ...)
 	return;
 }
 
-void log_close(void)
+void xyz_log_close(void)
 {
 	closelog();
 
 	return;
 }
 
-/////////////////////////////////////////////////
-/*
+//////////////////////////////////////////////////////////////////////////////
+
+#if 1
 int main(void)
 {
-	log_open("hello", LOG_MAIL, LOG_DEBUG);
+	xyz_log_open("hello", LOG_MAIL, LOG_DEBUG);
 
-	log_write(LOG_INFO, "write info");
-	log_write(LOG_DEBUG, "write debug");
+	xyz_log_write(LOG_INFO, "write info");
+	xyz_log_write(LOG_DEBUG, "write debug");
 
 	LOGI("write info 2");
 	LOGD("write debug 2");
 
-	log_close();
+	xyz_log_close();
 
 	return 0;
 }
-*/
+#endif 
+

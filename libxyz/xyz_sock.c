@@ -12,11 +12,11 @@
 #include <fcntl.h>
 #include <netinet/tcp.h>
 
-#include "sock.h"
+#include "xyz_sock.h"
 
 #define LISTEN_MAX 128
 
-int sock_noblock(int sockfd)
+int xyz_sock_noblock(int sockfd)
 {
 	int flag;
 
@@ -25,12 +25,12 @@ int sock_noblock(int sockfd)
 	return fcntl(sockfd, F_SETFL, flag|O_NONBLOCK);
 }
 
-int sock_closeonexec(int sockfd)
+int xyz_sock_closeonexec(int sockfd)
 {
 	return fcntl(sockfd, F_SETFD, FD_CLOEXEC); 
 }
 
-int sock_listen(char *addr, int port)
+int xyz_sock_listen(char *addr, int port)
 {
 	struct sockaddr_in sin;
 	int sockfd;
@@ -78,7 +78,7 @@ int sock_listen(char *addr, int port)
 	return sockfd;
 }
 
-int sock_accept(int sockfd)
+int xyz_sock_accept(int sockfd)
 {
 	struct sockaddr sa;
 	socklen_t len;
@@ -93,7 +93,7 @@ int sock_accept(int sockfd)
 	return conn;
 }
 
-int sock_connect(char *addr, int port)
+int xyz_sock_connect(char *addr, int port)
 {
 	struct sockaddr_in sin;
 	int sockfd;
@@ -125,7 +125,7 @@ int sock_connect(char *addr, int port)
 	return sockfd;
 }
 
-void sock_setopt(int sockfd)
+void xyz_sock_setopt(int sockfd)
 {
 	int keepalive = 1;
 	setsockopt(sockfd,SOL_SOCKET,SO_KEEPALIVE,(void*)(&keepalive), sizeof(int));
@@ -142,16 +142,18 @@ void sock_setopt(int sockfd)
 	return;
 }
 
-/////////////////////////////////////////////////
-/*
+//////////////////////////////////////////////////////////////////////////////
+
+#if 0
 int main(int argc, char *argv[])
 {
 	int fd;
 	
 	//sock_listen(NULL, 12345);
-	fd = sock_connect("localhost", 12345);
+	fd = xyz_sock_connect("localhost", 12345);
 	printf("connect on %d\n", fd);
 
 	return 0;
 }
-*/
+#endif 
+

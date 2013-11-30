@@ -4,9 +4,9 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "conf.h"
+#include "xyz_conf.h"
 
-FILE *conf_open(char *file)
+FILE *xyz_conf_open(char *file)
 {
 	FILE *fp;
 	char filepath[256];
@@ -64,7 +64,7 @@ FILE *conf_open(char *file)
 	return NULL;
 }
 
-char *conf_parse(char *line)
+char *xyz_conf_parse(char *line)
 {
 	char *p;
 
@@ -91,7 +91,7 @@ char *conf_parse(char *line)
 	return p+1;
 }
 
-int conf_trim(char *line)
+int xyz_conf_trim(char *line)
 {
 	char *d,*s;
 
@@ -118,13 +118,13 @@ int conf_trim(char *line)
 	return 0;
 }
 
-struct conf_t *conf_append(struct conf_t *conf, char *key, char *value)
+struct xyz_conf_t *xyz_conf_append(struct xyz_conf_t *conf, char *key, char *value)
 {
 	if(key == NULL || strlen(key) == 0 || value == NULL || strlen(value) == 0) {
 		return conf;
 	}
 
-	struct conf_t *tmpconf = malloc(sizeof(struct conf_t));
+	struct xyz_conf_t *tmpconf = malloc(sizeof(struct xyz_conf_t));
 	if(tmpconf == NULL) {
 		return conf;
 	}
@@ -146,12 +146,12 @@ struct conf_t *conf_append(struct conf_t *conf, char *key, char *value)
 	return tmpconf;
 }
 
-struct conf_t *conf_read(FILE *fp)
+struct xyz_conf_t *xyz_conf_read(FILE *fp)
 {
 	char line[512];
 	char *value;
 
-	struct conf_t *conf = NULL;
+	struct xyz_conf_t *conf = NULL;
 
 	while(! feof(fp)) {
 		bzero(line, sizeof(line));
@@ -159,34 +159,34 @@ struct conf_t *conf_read(FILE *fp)
 			continue;
 		}
 
-		if(conf_trim(line) == -1) {
+		if(xyz_conf_trim(line) == -1) {
 			continue;
 		}
-		value = conf_parse(line);
+		value = xyz_conf_parse(line);
 		if(value == NULL) {
 			continue;
 		}
-		conf = conf_append(conf, line, value);
+		conf = xyz_conf_append(conf, line, value);
 	}
 
 	return conf;
 }
 
-struct conf_t *conf_load(char *file)
+struct xyz_conf_t *xyz_conf_load(char *file)
 {
 	FILE *fp;
 
-	fp = conf_open(file);
+	fp = xyz_conf_open(file);
 	if(fp == NULL) {
 		return NULL;
 	}
 
-	return conf_read(fp);
+	return xyz_conf_read(fp);
 }
 
-void conf_destroy(struct conf_t *conf)
+void xyz_conf_destroy(struct xyz_conf_t *conf)
 {
-	struct conf_t *tmpconf;
+	struct xyz_conf_t *tmpconf;
 
 	while(conf) {
 		tmpconf = conf;
@@ -200,7 +200,7 @@ void conf_destroy(struct conf_t *conf)
 	return;
 }
 
-const char *conf_string(struct conf_t *conf, char *key)
+const char *xyz_conf_string(struct xyz_conf_t *conf, char *key)
 {
 	while(conf) {
 		if(strcmp(conf->key, key) == 0) {
@@ -212,7 +212,7 @@ const char *conf_string(struct conf_t *conf, char *key)
 	return NULL;
 }
 
-int conf_number(struct conf_t *conf, char *key)
+int xyz_conf_number(struct xyz_conf_t *conf, char *key)
 {
 	while(conf) {
 		if(strcmp(conf->key, key) == 0) {
@@ -224,7 +224,7 @@ int conf_number(struct conf_t *conf, char *key)
 	return -999;
 }
 
-void conf_stat(struct conf_t *conf)
+void xyz_conf_stat(struct xyz_conf_t *conf)
 {
 	printf("------ conf stat ------\n");
 
@@ -236,23 +236,25 @@ void conf_stat(struct conf_t *conf)
 	return;
 }
 
-/////////////////////////////////////////////////
-/*
+//////////////////////////////////////////////////////////////////////////////
+
+#if 0
 int main(int argc, char *argv[])
 {
-    struct conf_t *conf=NULL;
-	if((conf=conf_load(argv[1])) == NULL) {
+    struct xyz_conf_t *conf=NULL;
+	if((conf=xyz_conf_load(argv[1])) == NULL) {
 		printf("conf load error\n");
 		return 0;
 	}
-	conf_stat(conf);
+	xyz_conf_stat(conf);
 
-	conf=conf_append(conf, "hello", "world");
-	conf=conf_append(conf, "smail", "333");
-	conf_stat(conf);
+	conf=xyz_conf_append(conf, "hello", "world");
+	conf=xyz_conf_append(conf, "smail", "333");
+	xyz_conf_stat(conf);
 
-	conf_destroy(conf);
+	xyz_conf_destroy(conf);
 
 	return 0;
 }
-*/
+#endif 
+

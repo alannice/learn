@@ -7,25 +7,25 @@
 
 #include <sys/select.h>
 
-#include "event.h"
+#include "xyz_event.h"
 
 //typedef int (*ev_func)(int fd, void *arg);
 //
 //#define EVTYPE_RD 1
 //#define EVTYPE_WT 2
 
-struct event_node_t
+struct xyz_event_node_t
 {
 	int fd;
 	int type;
 
-	ev_func func;
+	xyz_ev_func func;
 	void *arg;
 
-	struct event_node_t *next;
+	struct xyz_event_node_t *next;
 };
 
-struct event_t
+struct xyz_event_t
 {
 	int maxfd;
 	int stop;
@@ -34,13 +34,13 @@ struct event_t
 	fd_set rdset;
 	fd_set wtset;
 
-	struct event_node_t *list;
-	ev_call call;
+	struct xyz_event_node_t *list;
+	xyz_ev_call call;
 };
 
-struct event_t *event_create()
+struct xyz_event_t *xyz_event_create()
 {
-	struct event_t *ev = malloc(sizeof(struct event_t));
+	struct xyz_event_t *ev = malloc(sizeof(struct xyz_event_t));
 	if(ev == NULL) {
 		return NULL;
 	}
@@ -57,16 +57,16 @@ struct event_t *event_create()
 	return ev;
 }
 
-int event_call(struct event_t *ev, ev_call call)
+int xyz_event_call(struct xyz_event_t *ev, xyz_ev_call call)
 {
 	ev->call = call;
 
 	return 0;
 }
 
-int event_add(struct event_t *ev, int fd, int type, ev_func func, void *arg)
+int xyz_event_add(struct xyz_event_t *ev, int fd, int type, xyz_ev_func func, void *arg)
 {
-	struct event_node_t *en = ev->list;
+	struct xyz_event_node_t *en = ev->list;
 	while(en) {
 		if(en->fd == fd && en->type == type) {
 			return 0;
@@ -74,7 +74,7 @@ int event_add(struct event_t *ev, int fd, int type, ev_func func, void *arg)
 		en = en->next;
 	}
 
-	en = malloc(sizeof(struct event_node_t));
+	en = malloc(sizeof(struct xyz_event_node_t));
 	if(en == NULL) {
 		return -1;
 	}
@@ -90,10 +90,10 @@ int event_add(struct event_t *ev, int fd, int type, ev_func func, void *arg)
 	return 0;
 }
 
-int event_del(struct event_t *ev, int fd, int type)
+int xyz_event_del(struct xyz_event_t *ev, int fd, int type)
 {
-	struct event_node_t *en = ev->list;
-	struct event_node_t *prov = NULL;
+	struct xyz_event_node_t *en = ev->list;
+	struct xyz_event_node_t *prov = NULL;
 
 	while(en) {
 		if(en->fd == fd && en->type == type) {
@@ -114,10 +114,10 @@ int event_del(struct event_t *ev, int fd, int type)
 	return -1;
 }
 
-int event_run(struct event_t *ev)
+int xyz_event_run(struct xyz_event_t *ev)
 {
 	int num;
-	struct event_node_t *en;
+	struct xyz_event_node_t *en;
 	struct timeval tv;
 
 	tv.tv_sec = 0;
@@ -173,14 +173,14 @@ int event_run(struct event_t *ev)
 	return num;
 }
 
-void event_stop(struct event_t *ev)
+void xyz_event_stop(struct xyz_event_t *ev)
 {
 	ev->stop = 1;
 
 	return;
 }
 
-void event_loop(struct event_t *ev)
+void xyz_event_loop(struct xyz_event_t *ev)
 {
 	ev->stop = 0;
 /*
@@ -189,7 +189,7 @@ void event_loop(struct event_t *ev)
 	}
 */
 	do {
-		event_run(ev);
+		xyz_event_run(ev);
 
 		if(ev->call) {
 			ev->call();
@@ -199,9 +199,9 @@ void event_loop(struct event_t *ev)
 	return;
 }
 
-void event_stat(struct event_t *ev)
+void xyz_event_stat(struct xyz_event_t *ev)
 {
-	struct event_node_t *en;
+	struct xyz_event_node_t *en;
 
 	printf("------ event stat ------\n");
 
@@ -220,28 +220,30 @@ void event_stat(struct event_t *ev)
 }
 
 
-/////////////////////////////////////////////////
-/*
-int event_test(int fd, void *arg)
+//////////////////////////////////////////////////////////////////////////////
+
+#if 0
+int xyz_event_test(int fd, void *arg)
 {
-	struct event_t *ev = arg;
+	struct xyz_event_t *ev = arg;
 
 	char msg[128];
 	bzero(msg, 128);
 	read(fd, msg, 120);
 	printf("%s\n", msg);
 	if(strcasecmp(msg, "quit") >= 0) {
-		event_stop(ev);
+		xyz_event_stop(ev);
 	}
 	return 0;
 }
 
 int main(void)
 {
-	struct event_t *ev;
-	ev = event_create();
-	event_add(ev, 0, EVTYPE_RD, event_test, ev);
-	event_loop(ev);
+	struct xyz_event_t *ev;
+	ev = xyz_event_create();
+	xyz_event_add(ev, 0, EVTYPE_RD, xyz_event_test, ev);
+	xyz_event_loop(ev);
 	return 0;
 }
-*/
+#endif 
+
