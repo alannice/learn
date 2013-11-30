@@ -8,6 +8,10 @@ INCDIR=/usr/local/include/xyz
 LIBDIR=/usr/local/lib
 INSTALL=install -m 0644 -o root -g wheel 
 
+TARGETA=$(MYLIB).a
+AR=ar
+ARFLAGS= -crs
+
 CC=gcc
 CFLAGS= -fPIC
 LDFLAGS=
@@ -25,6 +29,7 @@ all: $(OBJECT) $(TARGET)
 
 $(TARGET):$(OBJECT) 
 	$(CC) $(CFLAGS) -shared $(OBJECT) -Wl,-soname -Wl,$(TARGET)  -o $(TARGET) $(LDFLAGS) $(LIBS)
+	$(AR) $(ARFLAGS) -o $(TARGETA) $(OBJECT) $(LDFLAGS) $(LIBS)
 
 $(OBJECT):$(SOURCE) $(HEADER)
 
