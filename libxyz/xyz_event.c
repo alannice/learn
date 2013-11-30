@@ -147,7 +147,7 @@ int xyz_event_run(struct xyz_event_t *ev)
 	if(num == 0) {
 		return 0;
 	} else if(num == -1) {
-		if(errno == EINTR || errno == EAGAIN) {
+		if(errno == EINTR) {
 			return 0;
 		} else {
 			return -1;
@@ -186,6 +186,10 @@ void xyz_event_loop(struct xyz_event_t *ev)
 /*
 	while(! ev->stop) {
 		event_run();
+
+		if(ev->call) {
+			ev->call();
+		}
 	}
 */
 	do {
