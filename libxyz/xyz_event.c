@@ -14,15 +14,16 @@
 //#define EVTYPE_RD 1
 //#define EVTYPE_WT 2
 
+#define FDARRAY_MAX 8
+
 struct xyz_event_node_t
 {
 	int fd;
-	int type;
-
-	xyz_ev_func func;
+	int rdtype;
+	xyz_ev_func rdfunc;
+	int wttype;
+	xyz_ev_func wtfunc;
 	void *arg;
-
-	struct xyz_event_node_t *next;
 };
 
 struct xyz_event_t
@@ -34,12 +35,14 @@ struct xyz_event_t
 	fd_set rdset;
 	fd_set wtset;
 
-	struct xyz_event_node_t *list;
+	struct xyz_event_node_t array[FDARRAY_MAX];
 	xyz_ev_call call;
 };
 
 struct xyz_event_t *xyz_event_create()
 {
+	int i;
+
 	struct xyz_event_t *ev = malloc(sizeof(struct xyz_event_t));
 	if(ev == NULL) {
 		return NULL;
@@ -48,10 +51,14 @@ struct xyz_event_t *xyz_event_create()
 	ev->maxfd = 0;
 	ev->stop = 0;
 	ev->usec = 200*1000;
-	FD_ZERO(&ev->rdset);
-	FD_ZERO(&ev->wtset);
+	FD_ZERO(&(ev->rdset));
+	FD_ZERO(&(ev->wtset));
 
-	ev->list = NULL;
+	for(i=0; i<FDARRAY_MAX; i++) {
+		ev->array[i].fd = -1;
+		ev->array[i].rdtype = 0;
+		ev->array[i].wttype = 0;
+	}
 	ev->call = NULL;
 
 	return ev;
@@ -66,49 +73,51 @@ int xyz_event_call(struct xyz_event_t *ev, xyz_ev_call call)
 
 int xyz_event_add(struct xyz_event_t *ev, int fd, int type, xyz_ev_func func, void *arg)
 {
-	struct xyz_event_node_t *en = ev->list;
-	while(en) {
-		if(en->fd == fd && en->type == type) {
-			return 0;
-		}
-		en = en->next;
-	}
+	int i;
 
-	en = malloc(sizeof(struct xyz_event_node_t));
-	if(en == NULL) {
+	if(fd < 0 || func == NULL) {
 		return -1;
 	}
 
-	en->fd = fd;
-	en->type = type;
-	en->func = func;
-	en->arg = arg;
-	en->next = ev->list;
+	for(i=0; i<FDARRAY_MAX; i++) {
+		if(ev->array[i].fd < 0) {
+			if(type == EVTYPE_RD) {
+				ev->array[i].rdtype = 1;
+				ev->array[i].rdfunc = func;
+			} else if(type = EVTYPE_WT) {
+				ev->array[i].wttype = 1;
+				ev->array[i].wtfunc = func;
+			} else {
+				return -1;
+			}
+			ev->array[i].fd = fd;
+			ev->array[i].arg = arg;
 
-	ev->list = en;
+			return 0;
+		}
+	}
 
-	return 0;
+	return -1;
 }
 
 int xyz_event_del(struct xyz_event_t *ev, int fd, int type)
 {
-	struct xyz_event_node_t *en = ev->list;
-	struct xyz_event_node_t *prov = NULL;
+	int i;
 
-	while(en) {
-		if(en->fd == fd && en->type == type) {
-			if(prov) {
-				prov->next = en->next;
+	for(i=0; i<FDARRAY_MAX; i++) {
+		if(ev->array[i].fd == fd) {
+			if(type == EVTYPE_RD) {
+				ev->array[i].rdtype = 0;
+			} else if(type == EVTYPE_WT) {
+				ev->array[i].wttype = 0;
 			} else {
-				ev->list = en->next;
+				return -1;
 			}
-			free(en);
-
+			if(ev->array[i].rdtype == 0 && ev->array[i].wttype == 0) {
+				ev->array[i].fd = -1;
+			}
 			return 0;
 		}
-
-		prov = en;
-		en = en->next;
 	}
 
 	return -1;
@@ -116,7 +125,7 @@ int xyz_event_del(struct xyz_event_t *ev, int fd, int type)
 
 int xyz_event_run(struct xyz_event_t *ev)
 {
-	int num;
+	int num, i;
 	struct xyz_event_node_t *en;
 	struct timeval tv;
 
@@ -124,23 +133,20 @@ int xyz_event_run(struct xyz_event_t *ev)
 	tv.tv_usec = ev->usec;
 
 	// fill rdset/wtset
-	FD_ZERO(&ev->rdset);
-	FD_ZERO(&ev->wtset);
-	en = ev->list;
-	while(en) {
-		if(en->type == EVTYPE_RD) {
-			FD_SET(en->fd, &ev->rdset);
-			if(en->fd > ev->maxfd) {
-				ev->maxfd = en->fd;
-			}
-		} else if(en->type == EVTYPE_WT) {
-			FD_SET(en->fd, &ev->wtset);
-			if(en->fd > ev->maxfd) {
-				ev->maxfd = en->fd;
-			}
+	FD_ZERO(&(ev->rdset));
+	FD_ZERO(&(ev->wtset));
+	for(i=0; i<FDARRAY_MAX; i++) {
+		if(ev->array[i].fd < 0) {
+			continue;
 		}
-
-		en = en->next;
+		if(ev->array[i].rdtype) {
+			FD_SET(ev->array[i].fd, &(ev->rdset));
+		} else if(ev->array[i].wttype) {
+			FD_SET(ev->array[i].fd, &(ev->wtset));
+		}
+		if(ev->array[i].fd > ev->maxfd) {
+			ev->maxfd = ev->array[i].fd;
+		}
 	}
 
 	num = select(ev->maxfd+1, &ev->rdset, &ev->wtset, NULL, &tv);
@@ -155,19 +161,19 @@ int xyz_event_run(struct xyz_event_t *ev)
 	}
 
 	// read/write
-	en = ev->list;
-	while(en) {
-		if(en->type == EVTYPE_RD && FD_ISSET(en->fd, &ev->rdset)) {
-			if(en->func) {
-				en->func(en->fd, en->arg);
+	for(i=0; i<FDARRAY_MAX; i++) {
+		if(ev->array[i].fd < 0) {
+			continue;
+		}
+		if(ev->array[i].rdtype && FD_ISSET(ev->array[i].fd, &(ev->rdset))) {
+			if(ev->array[i].rdfunc) {
+				ev->array[i].rdfunc(ev->array[i].fd, ev->array[i].arg);
 			}
-		} else if(en->type == EVTYPE_WT && FD_ISSET(en->fd, &ev->wtset)) {
-			if(en->func) {
-				en->func(en->fd, en->arg);
+		} else if(ev->array[i].wttype && FD_ISSET(ev->array[i].fd, &(ev->wtset))) {
+			if(ev->array[i].wtfunc) {
+				ev->array[i].wtfunc(ev->array[i].fd, ev->array[i].arg);
 			}
 		}
-
-		en = en->next;
 	}
 
 	return num;
@@ -205,21 +211,22 @@ void xyz_event_loop(struct xyz_event_t *ev)
 
 void xyz_event_stat(struct xyz_event_t *ev)
 {
+	int i;
 	struct xyz_event_node_t *en;
 
 	printf("------ event stat ------\n");
 
-	en = ev->list;
-	while(en) {
-		if(en->type == EVTYPE_RD) {
-			printf("read : %d\n", en->fd);
-			printf("func : %p\n", en->func);
-		} else if(en->type == EVTYPE_WT) {
-			printf("write : %d\n", en->fd);
-			printf("func : %p\n", en->func);
+	for(i=0; i<FDARRAY_MAX; i++) {
+		if(ev->array[i].fd < 0) {
+			continue;
 		}
-
-		en = en->next;
+		if(ev->array[i].rdtype) {
+			printf("read : %d\n", ev->array[i].fd);
+			printf("func : %p\n", ev->array[i].rdfunc);
+		} else if(ev->array[i].wttype) {
+			printf("write : %d\n", ev->array[i].fd);
+			printf("func : %p\n", ev->array[i].wtfunc);
+		}
 	}
 }
 
@@ -235,8 +242,9 @@ int xyz_event_test(int fd, void *arg)
 	bzero(msg, 128);
 	read(fd, msg, 120);
 	printf("%s\n", msg);
-	if(strcasecmp(msg, "quit") >= 0) {
+	if(strncasecmp(msg, "quit", 4) == 0) {
 		xyz_event_stop(ev);
+		printf("bye ......\r\n");
 	}
 	return 0;
 }
@@ -245,6 +253,7 @@ int main(void)
 {
 	struct xyz_event_t *ev;
 	ev = xyz_event_create();
+	printf("echo server, input \"quit\" to exit\n");
 	xyz_event_add(ev, 0, EVTYPE_RD, xyz_event_test, ev);
 	xyz_event_loop(ev);
 	return 0;
