@@ -15,6 +15,7 @@ int xyz_event_add(struct xyz_event_t *ev, int fd, int type, xyz_ev_func func, vo
 int xyz_event_del(struct xyz_event_t *ev, int fd, int type);
 int xyz_event_run(struct xyz_event_t *ev);
 void xyz_event_stop(struct xyz_event_t *ev);
+void xyz_event_destroy(struct xyz_event_t *ev);
 void xyz_event_loop(struct xyz_event_t *ev);
 void xyz_event_stat(struct xyz_event_t *ev);
 int xyz_event_call(struct xyz_event_t *ev, xyz_ev_call call);

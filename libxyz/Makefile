@@ -29,7 +29,7 @@ all: $(OBJECT) $(TARGET)
 
 $(TARGET):$(OBJECT) 
 	$(CC) $(CFLAGS) -shared $(OBJECT) -Wl,-soname -Wl,$(TARGET)  -o $(TARGET) $(LDFLAGS) $(LIBS)
-	$(AR) $(ARFLAGS) -o $(TARGETA) $(OBJECT) $(LDFLAGS) $(LIBS)
+	$(AR) $(ARFLAGS) $(TARGETA) $(OBJECT) $(LDFLAGS) $(LIBS)
 
 $(OBJECT):$(SOURCE) $(HEADER)
 

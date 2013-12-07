@@ -63,7 +63,7 @@ void xyz_log_close(void)
 
 //////////////////////////////////////////////////////////////////////////////
 
-#if 1
+#if 0
 int main(void)
 {
 	xyz_log_open("hello", LOG_MAIL, LOG_DEBUG);

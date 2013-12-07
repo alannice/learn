@@ -186,6 +186,15 @@ void xyz_event_stop(struct xyz_event_t *ev)
 	return;
 }
 
+void xyz_event_destroy(struct xyz_event_t *ev)
+{
+	if(ev) {
+		free(ev);
+	}
+
+	return;
+}
+
 void xyz_event_loop(struct xyz_event_t *ev)
 {
 	ev->stop = 0;
