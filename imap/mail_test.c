@@ -18,7 +18,7 @@
 #include <string.h>
 #include <errno.h>
 #include <sys/socket.h>
-#include <resolv.h>
+//#include <resolv.h>
 #include <stdlib.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -295,7 +295,7 @@ int fork_child(int i)
                         //printf("newo child pid :%d\n", getpid());
                         signal(SIGCHLD, SIG_DFL);
                         syslog(LOG_DEBUG, "new child pid :%d\n", getpid());
-                        return;
+                        return 0;
                 } else {
                         g_sum--;
                 }
@@ -311,17 +311,13 @@ int main(int argc, char **argv)
         printf("Usage: %s <server_ip> <server_port> <imap | pop> <ssl | nossl> <childs>\n\n", argv[0]);
 
         if (argc != 6) {
-                printf("args error.\n", argv[0]);
+                printf("args error.\n");
                 exit(0);
         }
 
         openlog("mailtest", LOG_CONS|LOG_PID, LOG_MAIL);
 
         fork_child(atoi(argv[5]));
-
-        sleep(1);
-
-        return 0;
 
         sockfd = tcp_connect(argv[1], atoi(argv[2]));
 
