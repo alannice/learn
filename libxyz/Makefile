@@ -13,7 +13,7 @@ AR=ar
 ARFLAGS= -crs
 
 CC=gcc
-CFLAGS= -fPIC
+CFLAGS= -ggdb -fPIC
 LDFLAGS=
 LIBS=
 
