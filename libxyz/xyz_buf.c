@@ -159,6 +159,19 @@ int xyz_buf_write(struct xyz_buf_t *buf, int fd)
 	return m;
 }
 
+int xyz_buf_drop(struct xyz_buf_t *buf, int len)
+{
+	if(len > buf->len) {
+		return 0;
+	}
+
+	memmove(buf->data+len, buf->data, buf->len-len);
+	buf->len -= len;
+	*(buf->data+buf->len) = '\0';
+
+	return len;
+}
+
 int xyz_buf_sprintf(struct xyz_buf_t *buf, char *fmt, ...)
 {
 	va_list vl;
@@ -223,7 +236,7 @@ int xyz_buf_getline(struct xyz_buf_t *buf, char *data, int len)
 	}
 
 	if(pos - buf->data > len) {
-		return -1;
+		return -2;
 	}
 
 	*pos = '\0';

@@ -19,6 +19,7 @@ int xyz_buf_peek(struct xyz_buf_t *buf, char *data, int len);
 int xyz_buf_sprintf(struct xyz_buf_t *buf, char *fmt, ...);
 int xyz_buf_read(struct xyz_buf_t *buf, int fd);
 int xyz_buf_write(struct xyz_buf_t *buf, int fd);	
+int xyz_buf_drop(struct xyz_buf_t *buf, int len);
 char *xyz_buf_data(struct xyz_buf_t *buf);
 int xyz_buf_length(struct xyz_buf_t *buf);
 void xyz_buf_stat(struct xyz_buf_t *buf);
