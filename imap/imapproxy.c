@@ -223,6 +223,13 @@ int client_read(int fd, void *arg)
 	if(n == 0) {
 		printf("not full line get\n");
 		return 0;
+	} else if(n == -2) {
+		int len = strchr(xyz_buf_data(g_client.bufin), '\n') - xyz_buf_data(g_client.bufin);
+		xyz_buf_drop(g_client.bufin, len+1);
+		return 0;
+	} else if(n == -1) {
+		printf("buf inter error\n");
+		return 0;
 	}
 
 
