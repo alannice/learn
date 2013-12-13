@@ -20,18 +20,19 @@
 #define DEFAULT_CONF "imap_proxy.conf"
 
 #define CLI_STRLEN 255
-
+#define BUFSIZE_MAX 8192
 #define LINE_MAX   1024
 
 struct client_t {
 	char user[CLI_STRLEN];
-	char pass[CLI_STRLEN];
+	char passwd[CLI_STRLEN];
 	struct xyz_buf_t *bufin;
 	struct xyz_buf_t *bufout;
-	char cmd[CLI_STRLEN];
 	char tag[CLI_STRLEN];
-	char arg[CLI_STRLEN];
+	char cmd[CLI_STRLEN];
+	char args[CLI_STRLEN];
 	int status;
+	int errcmd;
 	time_t lastcmd;             
 	time_t starttime;               
 
@@ -42,6 +43,7 @@ struct client_t {
 
 struct setting_t{
 	int timeout;
+	int errcmd;
 };
 
 
@@ -68,12 +70,33 @@ char *g_lnpos;
 // client process
 //
 
-int client_timeout(void)
+int client_init()
+{
+	g_client.bufin = xyz_buf_create("client in", BUFSIZE_MAX);
+	g_client.bufout = xyz_buf_create("client out", BUFSIZE_MAX);
+
+	g_client.lastcmd = g_client.starttime = time(NULL);
+
+	xyz_buf_add(g_client.bufout, "* OK IMAP Proxy ready\r\n", 23);
+	xyz_buf_write(g_client.bufout, STDOUT_FILENO);
+
+	strcpy(g_client.cliaddr, "10.10.10.10");
+
+	return 0;
+}
+
+int client_check(void)
 {
 	if((time(NULL)-g_client.lastcmd) > g_setting.timeout) {
-		xyz_buf_add(g_client.bufout, "* OK IMAP Proxy bye\r\n", 21);
+		xyz_buf_add(g_client.bufout, "* OK IMAP Proxy timeout bye\r\n", 29);
 		xyz_buf_write(g_client.bufout, STDOUT_FILENO);
 		xyz_event_stop(g_event);
+	}
+
+	if(g_client.errcmd > g_setting.errcmd) {
+		xyz_buf_add(g_client.bufout, "* OK IMAP command error to many bye\r\n", 29);                                     
+		xyz_buf_write(g_client.bufout, STDOUT_FILENO);                                                           
+		xyz_event_stop(g_event);    
 	}
 
 	return 0;
@@ -82,42 +105,107 @@ int client_timeout(void)
 
 int cmd_login(void)
 {
+	printf("login :: tag:[%s], cmd:[%s], args:[%s]\n", g_client.tag, g_client.cmd, g_client.args);
 
+	if(strlen(g_client.args) == 0) {
+		printf("login :: args length is 0\n");
+		return -1;
+	}
+
+	char *user = g_client.args;
+	char *passwd = strchr(user, ' ');
+	if(passwd == NULL) {
+		printf("login :: args no space\n"); 
+		return -1;
+	}
+	*passwd = '\0';
+	if(strlen(user) == 0) {
+		printf("login :: no user name\n");
+		return -1;
+	}
+	passwd++;
+	if(strlen(passwd) == 0) {
+		printf("login :: passwd length is 0\n"); 
+		return -1;
+	}
+	if(strchr(passwd, ' ') != NULL) {
+		printf("login :: passwd has space\n");
+		return -1;
+	}
+
+	bzero(g_client.user, sizeof(g_client.user));
+	strncpy(g_client.user, user, sizeof(g_client.user)-1);
+	bzero(g_client.passwd, sizeof(g_client.passwd));
+	strncpy(g_client.passwd, passwd, sizeof(g_client.passwd)-1);
+
+	printf("login :: user:[%s], passwd:[%s]\n", user, passwd);
+	
 	return 0;
 }
 
 int cmd_logout(void)
 {
 
+	printf("logout :: tag:[%s], cmd:[%s], args:[%s]\n", g_client.tag, g_client.cmd, g_client.args);
+
+	if(strlen(g_client.args) > 0) {
+		printf("logout :: has args error\n");
+		return -1;
+	}
+
+	xyz_buf_add(g_client.bufout, "* OK IMAP Proxy logout bye\r\n", 28);
+	xyz_buf_write(g_client.bufout, STDOUT_FILENO);
+	xyz_event_stop(g_event);
+
 	return 0;
 }
 
 int cmd_capa(void)
 {
+	printf("capa :: tag:[%s], cmd:[%s], args:[%s]\n", g_client.tag, g_client.cmd, g_client.args);
+
+	if(strlen(g_client.args) > 0) {
+		printf("capability :: has args error\n");
+		return -1;
+	}
 
 	return 0;
 }
 
 int cmd_noop(void)
 {
+	printf("noop :: tag:[%s], cmd:[%s], args:[%s]\n", g_client.tag, g_client.cmd, g_client.args);
+
+	if(strlen(g_client.args) > 0) {
+		printf("noop :: has args error\n");
+		return -1;
+	}
 
 	return 0;
 }
 
 int cmd_auth(void)
 {
+	printf("auth :: tag:[%s], cmd:[%s], args:[%s]\n", g_client.tag, g_client.cmd, g_client.args);
+
+	if(strlen(g_client.args) > 0) {
+		printf("auth :: has args error\n");
+		return -1;
+	}
 
 	return 0;
 }
 
 int cmd_nosupport(void)
 {
+	printf("nosupport :: tag:[%s], cmd:[%s], args:[%s]\n", g_client.tag, g_client.cmd, g_client.args);
 
 	return 0;
 }
 
 int client_read(int fd, void *arg)
 {
+	char *tag, *cmd, *args;
 	int n;
 
 	n = xyz_buf_read(g_client.bufin, fd);
@@ -128,65 +216,88 @@ int client_read(int fd, void *arg)
 		return 0;
 	}
 
-	bzero(g_line, sizeof(g_line));                                                                                                   
-	bzero(g_client.cmd, sizeof(g_client.cmd));
-	bzero(g_client.tag, sizeof(g_client.tag));
+	g_client.lastcmd = time(NULL);
 
+	bzero(g_line, sizeof(g_line));
 	n = xyz_buf_getline(g_client.bufin, g_line, LINE_MAX);
 	if(n == 0) {
+		printf("not full line get\n");
 		return 0;
 	}
+
+
+	bzero(g_client.cmd, sizeof(g_client.cmd));
+	bzero(g_client.tag, sizeof(g_client.tag));
+	bzero(g_client.args, sizeof(g_client.args));
 
 	// get tag.
-	g_lnpos = g_line;
-	char *p = strchr(g_lnpos, ' ');
-	if(p == NULL) {
+	tag = g_line;
+	cmd = strchr(tag, ' ');
+	if(cmd == NULL) {
 		// error
+		printf("line no space\n");
+		g_client.errcmd++;
 		return 0;
 	}
-	*p = '\0';
-	if(strlen(g_lnpos) == 0) {
-		// error
+	*cmd = '\0';
+	if(strlen(tag) == 0) {
+		printf("tag length is 0\n");
+		g_client.errcmd++;
 		return 0;
 	}
-	strncpy(g_client.tag, g_lnpos, sizeof(g_client.tag)-1);
+	strncpy(g_client.tag, tag, sizeof(g_client.tag)-1);
 
 	// get cmd
-	g_lnpos = p+1;
-	p = strchr(g_lnpos, ' ');
-	if(p == NULL) {
-		strncpy(g_client.cmd, g_lnpos, sizeof(g_client.cmd)-1);
-	} else {
-		*p = '\0';
-		if(strlen(g_lnpos) == 0) {
-			return 0;
-		}
-		strncpy(g_client.cmd, g_lnpos, sizeof(g_client.cmd)-1);
-
-		// get arg
-		g_lnpos = p+1;	
-		if(strlen(g_lnpos) > 0) {
-			strncpy(g_client.arg, g_lnpos, sizeof(g_client.arg)-1);
-		}
-	}
-
-	if(strlen(g_client.tag) == 0 || strlen(g_client.cmd) == 0) {
+	cmd++;
+	if(strlen(cmd) == 0) {
+		// error
+		printf("command length is 0\n");
+		g_client.errcmd++;
 		return 0;
 	}
+	// get args
+	args = strchr(cmd, ' ');
+	if(args == NULL) {
+		strncpy(g_client.cmd, cmd, sizeof(g_client.cmd)-1);
+	} else {
+		*args = '\0';
+		if(strlen(cmd) == 0) {
+			printf("command length is 0\n");
+			g_client.errcmd++;
+			return 0;
+		}
+		strncpy(g_client.cmd, cmd, sizeof(g_client.cmd)-1);
+
+		// get arg
+		args++;	
+		if(strlen(args) > 0) {
+			strncpy(g_client.args, args, sizeof(g_client.args)-1);
+		} else {
+			printf("the end is a space\n");
+			return 0;
+		}
+	}
+
 
 	if(strcasecmp(g_client.cmd, "login") == 0) {
-		cmd_login();
+		n = cmd_login();
 	} else if(strcasecmp(g_client.cmd, "logout") == 0) {
-		cmd_logout();
+		n = cmd_logout();
 	} else if(strcasecmp(g_client.cmd, "capability") == 0) {
-		cmd_capa();
+		n = cmd_capa();
 	} else if(strcasecmp(g_client.cmd, "authenticate") == 0) {
-		cmd_auth();
+		n = cmd_auth();
 	} else if(strcasecmp(g_client.cmd, "noop") == 0) {
-		cmd_noop();
+		n = cmd_noop();
 	} else {
 		// error
-		cmd_nosupport();
+		n = cmd_nosupport();
+	}
+
+	if(n == -1) {
+		g_client.errcmd++;
+	} else {
+		g_client.errcmd = 0;
 	}
 
 	return 0;
@@ -260,17 +371,18 @@ int main(int argc, char *argv[])
 	xyz_log_open("imap-proxy" , LOG_MAIL, LOG_DEBUG);
 
 	setopt(argc, argv);
-
 	g_config = xyz_conf_load(g_confile);
 
-	//client_init();
+	g_setting.timeout = 10;
+	g_setting.errcmd = 5;
+	client_init();
 
 	g_event = xyz_event_create();
 	if(g_event == NULL) {
 		return 0;
 	}
 
-	xyz_event_call(g_event, client_timeout);
+	xyz_event_call(g_event, client_check);
 	xyz_event_add(g_event, STDIN_FILENO, EVTYPE_RD, client_read, NULL);
 	xyz_event_loop(g_event);
 
