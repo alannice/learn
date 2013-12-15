@@ -37,8 +37,11 @@ struct client_t {
 	time_t starttime;               
 
 	char cliaddr[CLI_STRLEN+1];
+
+	int servfd;
 	char servaddr[CLI_STRLEN+1];              
 	int servport;
+	int servstat;
 };  
 
 struct setting_t{
@@ -56,6 +59,29 @@ struct xyz_conf_t *g_config;
 
 char g_line[LINE_MAX+1];
 char *g_lnpos;
+
+// client process
+int our_auth();
+int client_init();
+int client_check(void);
+int client_read(int fd, void *arg);
+int client_write(int fd, void *arg);
+int client_trans(int fd, void *arg);
+
+// server process
+int server_connect();
+int server_read(int fd, void *arg);
+int server_write(int fd, void *arg);
+int server_trans(int fd, void *arg);
+
+// command process
+int cmd_login(void);
+int cmd_logout(void);
+int cmd_capa(void);
+int cmd_noop(void);
+int cmd_auth(void);
+int cmd_id(void);
+int cmd_nosupport(void);
 
 
 //////////////////////////////////////////////////////////////////////////////
@@ -172,6 +198,16 @@ int cmd_login(void)
 	strncpy(g_client.passwd, passwd, sizeof(g_client.passwd)-1);
 
 	printf("login :: user:[%s], passwd:[%s]\n", user, passwd);
+
+	retval = server_connect();
+	if(retval == -1) {
+		char *msg1 = "NO Login failed, Service unavailable\r\n";
+
+		xyz_buf_sprintf(g_client.bufout, "%s %s", g_client.tag, msg1);
+		xyz_buf_write(g_client.bufout, STDOUT_FILENO);
+
+		return -1;
+	}
 	
 	return 0;
 }
@@ -383,6 +419,8 @@ int client_read(int fd, void *arg)
 		xyz_buf_sprintf(g_client.bufout, "%s %s", g_client.tag, msg);
 		xyz_buf_write(g_client.bufout, STDOUT_FILENO);
 		
+		g_client.errcmd++;
+
 		return 0;
 	}
 
@@ -413,17 +451,175 @@ int client_read(int fd, void *arg)
 	return 0;
 }
 
-
 int client_write(int fd, void *arg)
 {
+	int n; 
 
-	return 0;
+	n = xyz_buf_write(g_client.bufout, fd); 
+	if(n == -1) {                                                                                                            
+		printf("client socket error\n");
+		xyz_event_stop(g_event);
+	}                                                                                                                        
+
+	if(xyz_buf_length(g_client.bufout) == 0) {   
+		xyz_event_del(g_event, fd, EVTYPE_WT); 
+	}                                                                                                                        
+
+	printf("to server write : %d", n);  
+
+	return n;                      
+}
+
+int client_trans(int fd, void *arg)
+{
+	int n;                                                                                                                   
+
+	g_client.lastcmd = time(NULL);                                                                                           
+
+	n = xyz_buf_read(g_client.bufin, fd);
+	if(n == -1) {
+		printf("client socket error\n");
+		xyz_event_stop(g_event);  
+	}  
+
+	if(n > 0) {                                                                                                              
+		xyz_event_add(g_event, g_client.servfd, EVTYPE_WT, server_write, &g_client);
+	}                                                                                                                        
+
+	return n;           
 }
 
 
 //////////////////////////////////////////////////////////////////////////////
 // server process
 //
+
+int server_connect()
+{
+	int retval;
+
+	g_client.servfd = xyz_sock_connect(g_client.servaddr, g_client.servport);                                                        
+	if(g_client.servfd == -1) {
+		char *msg = "NO Login failed, Service unavailable\r\n";
+
+		xyz_buf_sprintf(g_client.bufout, "%s %s", g_client.tag, msg);
+		xyz_buf_write(g_client.bufout, STDOUT_FILENO);
+
+		return -1;
+	}                                                                                                             
+
+	printf("connect to server");                                                                                       
+
+	// set to noblock.                                                                                               
+	xyz_event_del(g_event, STDIN_FILENO, EVTYPE_RD);                                                                     
+
+	g_client.servstat = 0;
+
+	xyz_sock_noblock(g_client.servfd);                                                                                      
+	xyz_event_add(g_event, g_client.servfd, EVTYPE_RD, server_read, NULL);                                            
+
+	return 0;
+}
+
+int server_read(int fd, void *arg)
+{
+	int n;
+	char tmphead[1024];
+
+	n = xyz_buf_read(g_client.bufin, fd);
+	if(n == -1) {
+		xyz_event_stop(g_event);
+		return 0;
+	} else if(n == 0) {
+		return 0;
+	}
+
+	bzero(g_line, sizeof(g_line));
+	n = xyz_buf_getline(g_client.bufin, g_line, LINE_MAX);
+	if(n == 0) {
+		printf("not full line get\n");
+		return 0;
+	} else if(n == -2) {
+		printf("line too lang drop it\n");
+		int len = strchr(xyz_buf_data(g_client.bufin), '\n') - xyz_buf_data(g_client.bufin);
+		xyz_buf_drop(g_client.bufin, len+1);
+		return 0;
+	} else if(n == -1) {
+		printf("buf inter error\n");
+		return 0;
+	}
+
+	// case 1
+	if(g_client.servstat == 0) {
+		if(strncasecmp("* OK ", g_line, 5) != 0) {
+			printf("server error\n");
+			return -1;
+		}
+
+		g_client.servstat = 1;
+
+		xyz_buf_sprintf(g_client.bufout, "%s LOGIN %s %s\r\n", g_client.tag, g_client.user, g_client.passwd);
+		xyz_buf_write(g_client.bufout, g_client.servfd);   
+		
+		return 0;
+	}
+
+	// case 2
+	if(g_client.servstat == 1) {
+		bzero(tmphead, sizeof(tmphead));
+		snprintf(tmphead, sizeof(tmphead), "%s OK ", g_client.tag);
+
+		if(strncasecmp(tmphead, g_line, strlen(tmphead)) != 0) {
+			printf("server error\n");
+			return -1;
+		}
+
+		g_client.servstat = 2;
+
+		xyz_event_add(g_event, g_client.servfd, EVTYPE_RD, server_trans, NULL);                                            
+		xyz_event_add(g_event, STDIN_FILENO, EVTYPE_RD, client_trans, NULL);
+
+		return 0;
+	}
+
+	return 0;
+}
+
+int server_write(int fd, void *arg)
+{
+	int n; 
+
+	n = xyz_buf_write(g_client.bufin, fd); 
+	if(n == -1) {                                                                                                            
+		printf("client socket error\n");
+		xyz_event_stop(g_event);
+	}                                                                                                                        
+
+	if(xyz_buf_length(g_client.bufin) == 0) {   
+		xyz_event_del(g_event, fd, EVTYPE_WT); 
+	}                                                                                                                        
+
+	printf("to client write : %d", n);  
+
+	return n; 
+}
+
+int server_trans(int fd, void *arg)
+{
+	int n;                                                                                                                   
+
+	n = xyz_buf_read(g_client.bufout, fd);
+	if(n == -1) {
+		printf("server socket error\n");
+		xyz_event_stop(g_event);  
+	}  
+
+	if(n > 0) {                                                                                                              
+		xyz_event_add(g_event, STDOUT_FILENO, EVTYPE_WT, client_write, NULL);
+	}                                                                                                                        
+
+	return n;           
+}
 
 
 //////////////////////////////////////////////////////////////////////////////
