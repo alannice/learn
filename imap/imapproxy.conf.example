@@ -12,10 +12,10 @@ servaddr = imap.sina.com
 servport = 143
 
 # log message level, default 6
-loglevel = 6
+loglevel = 7
 
 # client no data timeout, default 30 second
-timeout = 30
+timeout = 60
 
 # client max error command in succession, default 5 
 errcmd = 5

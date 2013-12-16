@@ -80,7 +80,7 @@ int xyz_event_add(struct xyz_event_t *ev, int fd, int type, xyz_ev_func func, vo
 	}
 
 	for(i=0; i<FDARRAY_MAX; i++) {
-		if(ev->array[i].fd < 0) {
+		if(ev->array[i].fd < 0 || ev->array[i].fd == fd) {
 			if(type == EVTYPE_RD) {
 				ev->array[i].rdtype = 1;
 				ev->array[i].rdfunc = func;
@@ -229,13 +229,13 @@ void xyz_event_stat(struct xyz_event_t *ev)
 		if(ev->array[i].fd < 0) {
 			continue;
 		}
+		printf("fd:%d ", ev->array[i].fd);
 		if(ev->array[i].rdtype) {
-			printf("read : %d\n", ev->array[i].fd);
-			printf("func : %p\n", ev->array[i].rdfunc);
+			printf("read func : %p ", ev->array[i].rdfunc);
 		} else if(ev->array[i].wttype) {
-			printf("write : %d\n", ev->array[i].fd);
-			printf("func : %p\n", ev->array[i].wtfunc);
+			printf("write func : %p", ev->array[i].wtfunc);
 		}
+		printf("\n");
 	}
 }
 
