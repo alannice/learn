@@ -1,0 +1,22 @@
+############################################################
+## imapproxy.conf
+############################################################
+
+# default email domain
+defdomain = sina.com
+
+# email server address
+servaddr = imap.sina.com
+
+# email server port
+servport = 143
+
+# log message level, default 6
+loglevel = 6
+
+# client no data timeout, default 30 second
+timeout = 30
+
+# client max error command in succession, default 5 
+errcmd = 5
+

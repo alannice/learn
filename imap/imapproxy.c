@@ -1,3 +1,9 @@
+/**
+ * imapproxy.c
+ *
+ * 
+ *
+**/
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -14,55 +20,61 @@
 #include <xyz_log.h>
 
 //////////////////////////////////////////////////////////////////////////////
-// global 
+// global
 //
 
-#define DEFAULT_CONF "imap_proxy.conf"
+#define DEFAULT_CONF "imapproxy.conf"
 
 #define CLI_STRLEN 255
 #define BUFSIZE_MAX 8192
 #define LINE_MAX   998  // rfc...
 
+/// 
 struct client_t {
-	char user[CLI_STRLEN+1];
-	char passwd[CLI_STRLEN+1];
-	struct xyz_buf_t *bufin;
-	struct xyz_buf_t *bufout;
-	char tag[CLI_STRLEN+1];
-	char cmd[CLI_STRLEN+1];
-	char args[CLI_STRLEN+1];
-	int status;
-	int errcmd;
-	time_t lastcmd;             
-	time_t starttime;               
+    char user[CLI_STRLEN+1];		// user email
+    char passwd[CLI_STRLEN+1];		// user password
+    struct xyz_buf_t *bufin;		// recv user data and send to server.
+    struct xyz_buf_t *bufout;		// recv server data and send to client.
+    char tag[CLI_STRLEN+1];			// imap command tag
+    char cmd[CLI_STRLEN+1];			// imap command
+    char args[CLI_STRLEN+1];		// imap command args
+    int status;						// client status unused
+    int errcmd;						// error command in succession
+    time_t lastcmd;					// last data received time
+    time_t starttime;				// start time
 
-	char cliaddr[CLI_STRLEN+1];
+    char cliaddr[CLI_STRLEN+1];		// client address
 
-	int servfd;
-	char servaddr[CLI_STRLEN+1];              
-	int servport;
-	int servstat;
-};  
-
-struct setting_t{
-	int timeout;
-	int errcmd;
+    int servfd;						// server socket fd
+    int servstat;					// server state, 0:received server ready; 1:login sucessed
 };
 
+struct setting_t {
+    char defdomain[CLI_STRLEN+1];	// default email domain
+    char servaddr[CLI_STRLEN+1];	// server addr
+    int servport;					// server port
+    int timeout;					// client timeout
+    int errcmd;						// max error command in succession
+    int loglevel;					// log message level
+};
 
-char g_confile[256] = {0};
-struct client_t g_client;
-struct setting_t g_setting;
+char g_confile[256] = {0};			// config file
+struct client_t g_client;			// client CTX
+struct setting_t g_setting;			// setting 
 
-struct xyz_event_t *g_event;
-struct xyz_conf_t *g_config;
+struct xyz_event_t *g_event;		// socket event
 
-char g_line[LINE_MAX+1];
-char *g_lnpos;
+char g_line[LINE_MAX+1];			// client imap command line
+
+///////////////////////////////////////////////
+
+// setting
+int setting_init(void);
+int setting_load(void);
 
 // client process
-int our_auth();
-int client_init();
+int our_auth(void);
+int client_init(void);
 int client_check(void);
 int client_read(int fd, void *arg);
 int client_write(int fd, void *arg);
@@ -88,405 +100,464 @@ int cmd_nosupport(void);
 // load config
 //
 
+int setting_init(void)
+{
+    memset(&g_setting, '\0', sizeof(struct setting_t));
 
+	g_setting.timeout = 30;
+	g_setting.loglevel = 6;
+	g_setting.errcmd = 5;
 
+    return 0;
+}
+
+int setting_load(void)
+{
+    struct xyz_conf_t *conf;
+
+    conf = xyz_conf_load(g_confile);
+    if (conf == NULL) {
+        printf("conf load error\n");
+        return -1;
+    }
+
+    if (xyz_conf_number(conf, "loglevel") > 0) {
+        g_setting.loglevel = xyz_conf_number(conf, "loglevel");
+    }
+    if (xyz_conf_number(conf, "timeout") > 0) {
+        g_setting.timeout = xyz_conf_number(conf, "timeout");
+    }
+    if (strlen(xyz_conf_string(conf, "defdomain")) > 0) {
+        strncpy(g_setting.defdomain, xyz_conf_string(conf, "defdomain"), sizeof(g_setting.defdomain)-1);
+    }
+    if (strlen(xyz_conf_string(conf, "servaddr")) > 0) {
+        strncpy(g_setting.servaddr, xyz_conf_string(conf, "servaddr"), sizeof(g_setting.servaddr)-1);
+    }
+    if (xyz_conf_number(conf, "servport") > 0) {
+        g_setting.servport = xyz_conf_number(conf, "servport");
+    }
+    if (xyz_conf_number(conf, "errcmd") > 0) {
+        g_setting.errcmd = xyz_conf_number(conf, "errcmd");
+    }
+
+	xyz_conf_destroy(conf);
+
+	if(strlen(g_setting.defdomain) == 0) {
+		printf("not set default domain\n");
+		return -1;
+	}
+	if(strlen(g_setting.servaddr) == 0) {
+		printf("not set server addr\n");
+		return -1;
+	}
+	if(g_setting.servport == 0) {
+		printf("not set server port\n");
+		return -1;
+	}
+
+    return 0;
+}
 
 
 //////////////////////////////////////////////////////////////////////////////
 // client process
 //
 
-int client_init()
+int client_init(void)
 {
-	g_client.bufin = xyz_buf_create("client in", BUFSIZE_MAX);
-	g_client.bufout = xyz_buf_create("client out", BUFSIZE_MAX);
+	bzero(&g_client, sizeof(g_client));
 
-	g_client.lastcmd = g_client.starttime = time(NULL);
+    g_client.bufin = xyz_buf_create("client in", BUFSIZE_MAX);
+    g_client.bufout = xyz_buf_create("client out", BUFSIZE_MAX);
 
-	char *msg = "* OK IMAPrev1 Proxy ready\r\n";
-	xyz_buf_add(g_client.bufout, msg, strlen(msg));
-	xyz_buf_write(g_client.bufout, STDOUT_FILENO);
+    g_client.lastcmd = g_client.starttime = time(NULL);
 
-	strcpy(g_client.cliaddr, "10.10.10.10");
+    char *msg = "* OK IMAPrev1 Proxy ready\r\n";
+    xyz_buf_add(g_client.bufout, msg, strlen(msg));
+    xyz_buf_write(g_client.bufout, STDOUT_FILENO);
 
-	return 0;
+    return 0;
 }
 
 int client_check(void)
 {
-	if((time(NULL)-g_client.lastcmd) > g_setting.timeout) {
-		printf("client_check :: timeout closed\n");
-		xyz_event_stop(g_event);
-	}
+    if ((time(NULL)-g_client.lastcmd) > g_setting.timeout) {
+        printf("client_check :: timeout closed\n");
+        xyz_event_stop(g_event);
+    }
 
-	if(g_client.errcmd > g_setting.errcmd) {
-		printf("client_check :: to many error\n");
-		xyz_event_stop(g_event);    
-	}
+    if (g_client.errcmd > g_setting.errcmd) {
+        printf("client_check :: to many error\n");
+        xyz_event_stop(g_event);
+    }
 
-	return 0;
+    return 0;
 }
 
-int our_auth() 
+int our_auth(void)
 {
 
-	return 0;
+    return 0;
 }
-
 
 int cmd_login(void)
 {
-	char *user, *passwd;
-	int flag = 0;
+    char *user, *passwd;
+    int flag = 0;
 
-	printf("login :: tag:[%s], cmd:[%s], args:[%s]\n", g_client.tag, g_client.cmd, g_client.args);
+    printf("login :: tag:[%s], cmd:[%s], args:[%s]\n", g_client.tag, g_client.cmd, g_client.args);
 
-	do {
-		if(strlen(g_client.args) == 0) {
-			printf("login :: args length is 0\n");
-			break;
-		}
+    do {
+        if (strlen(g_client.args) == 0) {
+            printf("login :: args length is 0\n");
+            break;
+        }
 
-		user = g_client.args;
-		passwd = strchr(user, ' ');
-		if(passwd == NULL) {
-			printf("login :: args no space\n"); 
-			break;
-		}
-		*passwd = '\0';
-		if(strlen(user) == 0) {
-			printf("login :: no user name\n");
-			break;
-		}
-		passwd++;
-		if(strlen(passwd) == 0) {
-			printf("login :: passwd length is 0\n"); 
-			break;
-		}
-		if(strchr(passwd, ' ') != NULL) {
-			printf("login :: passwd has space\n");
-			break;
-		}
+        user = g_client.args;
+        passwd = strchr(user, ' ');
+        if (passwd == NULL) {
+            printf("login :: args no space\n");
+            break;
+        }
+        *passwd = '\0';
+        if (strlen(user) == 0) {
+            printf("login :: no user name\n");
+            break;
+        }
+        passwd++;
+        if (strlen(passwd) == 0) {
+            printf("login :: passwd length is 0\n");
+            break;
+        }
+        if (strchr(passwd, ' ') != NULL) {
+            printf("login :: passwd has space\n");
+            break;
+        }
 
-		flag = 0;
-	} while (0);
+        flag = 1;
+    } while (0);
 
-	if(flag == 0) {
-		char *msg1 = "BAD Request\r\n";
-		
-		xyz_buf_sprintf(g_client.bufout, "%s %s", g_client.tag, msg1);
-		xyz_buf_write(g_client.bufout, STDOUT_FILENO); 
+    if (flag == 0) {
+        char *msg1 = "BAD Request\r\n";
 
-		return -1;
-	} 
+        xyz_buf_sprintf(g_client.bufout, "%s %s", g_client.tag, msg1);
+        xyz_buf_write(g_client.bufout, STDOUT_FILENO);
 
-	// auth ...
-	
-	int retval = our_auth();
-	if(retval == -1) {
-		char *msg1 = "NO LOGIN Login or password error\r\n";
+        return -1;
+    }
 
-		xyz_buf_sprintf(g_client.bufout, "%s %s", g_client.tag, msg1);
-		xyz_buf_write(g_client.bufout, STDOUT_FILENO);
+    // auth ...
 
-		return -1;
-	}
+    int retval = our_auth();
+    if (retval == -1) {
+        char *msg1 = "NO LOGIN Login or password error\r\n";
 
-	bzero(g_client.user, sizeof(g_client.user));
-	strncpy(g_client.user, user, sizeof(g_client.user)-1);
-	bzero(g_client.passwd, sizeof(g_client.passwd));
-	strncpy(g_client.passwd, passwd, sizeof(g_client.passwd)-1);
+        xyz_buf_sprintf(g_client.bufout, "%s %s", g_client.tag, msg1);
+        xyz_buf_write(g_client.bufout, STDOUT_FILENO);
 
-	printf("login :: user:[%s], passwd:[%s]\n", user, passwd);
+        return -1;
+    }
 
-	retval = server_connect();
-	if(retval == -1) {
-		char *msg1 = "NO Login failed, Service unavailable\r\n";
+    bzero(g_client.user, sizeof(g_client.user));
+    strncpy(g_client.user, user, sizeof(g_client.user)-1);
+    bzero(g_client.passwd, sizeof(g_client.passwd));
+    strncpy(g_client.passwd, passwd, sizeof(g_client.passwd)-1);
 
-		xyz_buf_sprintf(g_client.bufout, "%s %s", g_client.tag, msg1);
-		xyz_buf_write(g_client.bufout, STDOUT_FILENO);
+    printf("login :: user:[%s], passwd:[%s]\n", user, passwd);
 
-		return -1;
-	}
-	
-	return 0;
+    retval = server_connect();
+    if (retval == -1) {
+        char *msg1 = "NO Login failed, Service unavailable\r\n";
+
+        xyz_buf_sprintf(g_client.bufout, "%s %s", g_client.tag, msg1);
+        xyz_buf_write(g_client.bufout, STDOUT_FILENO);
+
+        return -1;
+    }
+
+	printf("connect server ok\n");
+
+    return 0;
 }
 
 int cmd_logout(void)
 {
+    printf("logout :: tag:[%s], cmd:[%s], args:[%s]\n", g_client.tag, g_client.cmd, g_client.args);
 
-	printf("logout :: tag:[%s], cmd:[%s], args:[%s]\n", g_client.tag, g_client.cmd, g_client.args);
+    if (strlen(g_client.args) > 0) {
+        printf("logout :: has args error\n");
+        return -1;
+    }
 
-	if(strlen(g_client.args) > 0) {
-		printf("logout :: has args error\n");
-		return -1;
-	}
+    char *msg1 = "* BYE IMAP4rev1 Proxy logging out\r\n";
+    char *msg2 = "OK LOGOUT completed\r\n";
 
-	char *msg1 = "* BYE IMAP4rev1 Proxy logging out\r\n";
-	char *msg2 = "OK LOGOUT completed\r\n";
+    xyz_buf_add(g_client.bufout, msg1, strlen(msg1));
+    xyz_buf_sprintf(g_client.bufout, "%s %s", g_client.tag, msg2);
+    xyz_buf_write(g_client.bufout, STDOUT_FILENO);
+    xyz_event_stop(g_event);
 
-	xyz_buf_add(g_client.bufout, msg1, strlen(msg1));
-	xyz_buf_sprintf(g_client.bufout, "%s %s", g_client.tag, msg2);
-	xyz_buf_write(g_client.bufout, STDOUT_FILENO);
-	xyz_event_stop(g_event);
-
-	return 0;
+    return 0;
 }
 
 int cmd_capa(void)
 {
-	printf("capa :: tag:[%s], cmd:[%s], args:[%s]\n", g_client.tag, g_client.cmd, g_client.args);
+    printf("capa :: tag:[%s], cmd:[%s], args:[%s]\n", g_client.tag, g_client.cmd, g_client.args);
 
-	/*
-	if(strlen(g_client.args) > 0) {
-		printf("capability :: has args error\n");
-		return -1;
-	}
-	*/
+    /*
+    if(strlen(g_client.args) > 0) {
+    	printf("capability :: has args error\n");
+    	return -1;
+    }
+    */
 
-	char *msg1 = "* CAPABILITY IMAP4rev1 ID STARTTLS UIDPLUS\r\n";
-	char *msg2 = "OK CAPABILITY completed\r\n";
+    char *msg1 = "* CAPABILITY IMAP4rev1 ID STARTTLS UIDPLUS\r\n";
+    char *msg2 = "OK CAPABILITY completed\r\n";
 
-	xyz_buf_add(g_client.bufout, msg1, strlen(msg1));
-	xyz_buf_sprintf(g_client.bufout, "%s %s", g_client.tag, msg2);
-	xyz_buf_write(g_client.bufout, STDOUT_FILENO);
+    xyz_buf_add(g_client.bufout, msg1, strlen(msg1));
+    xyz_buf_sprintf(g_client.bufout, "%s %s", g_client.tag, msg2);
+    xyz_buf_write(g_client.bufout, STDOUT_FILENO);
 
-	return 0;
+    return 0;
 }
 
 int cmd_noop(void)
 {
-	printf("noop :: tag:[%s], cmd:[%s], args:[%s]\n", g_client.tag, g_client.cmd, g_client.args);
+    printf("noop :: tag:[%s], cmd:[%s], args:[%s]\n", g_client.tag, g_client.cmd, g_client.args);
 
-	/*
-	if(strlen(g_client.args) > 0) {
-		printf("noop :: has args error\n");
-		return -1;
-	}
-	*/
+    /*
+    if(strlen(g_client.args) > 0) {
+    	printf("noop :: has args error\n");
+    	return -1;
+    }
+    */
 
-	char *msg = "OK NOOP completed\r\n";
+    char *msg = "OK NOOP completed\r\n";
 
-	xyz_buf_sprintf(g_client.bufout, "%s %s", g_client.tag, msg);
-	xyz_buf_write(g_client.bufout, STDOUT_FILENO);
+    xyz_buf_sprintf(g_client.bufout, "%s %s", g_client.tag, msg);
+    xyz_buf_write(g_client.bufout, STDOUT_FILENO);
 
-	return 0;
+    return 0;
 }
 
 int cmd_auth(void)
 {
-	printf("auth :: tag:[%s], cmd:[%s], args:[%s]\n", g_client.tag, g_client.cmd, g_client.args);
+    printf("auth :: tag:[%s], cmd:[%s], args:[%s]\n", g_client.tag, g_client.cmd, g_client.args);
 
-	/*
-	if(strlen(g_client.args) > 0) {
-		printf("auth :: has args error\n");
-		return -1;
-	}
-	*/
+    /*
+    if(strlen(g_client.args) > 0) {
+    	printf("auth :: has args error\n");
+    	return -1;
+    }
+    */
 
-	char *msg = "BAD command not support\r\n";
+    char *msg = "BAD command not support\r\n";
 
-	xyz_buf_sprintf(g_client.bufout, "%s %s", g_client.tag, msg);
-	xyz_buf_write(g_client.bufout, STDOUT_FILENO);
+    xyz_buf_sprintf(g_client.bufout, "%s %s", g_client.tag, msg);
+    xyz_buf_write(g_client.bufout, STDOUT_FILENO);
 
-	return 0;
+    return 0;
 }
 
 int cmd_id(void)
 {
-	printf("id :: tag:[%s], cmd:[%s], args:[%s]\n", g_client.tag, g_client.cmd, g_client.args);
+    printf("id :: tag:[%s], cmd:[%s], args:[%s]\n", g_client.tag, g_client.cmd, g_client.args);
 
-	if(strlen(g_client.args) > 0) {
-		char *msg1 = "* ID (\"name\" \"sina imap server\" \"vendor\" \"sina\")\r\n";
-		char *msg2 = "OK ID Completed\r\n";
+    if (strlen(g_client.args) > 0) {
+        char *msg1 = "* ID (\"name\" \"sina imap server\" \"vendor\" \"sina\")\r\n";
+        char *msg2 = "OK ID Completed\r\n";
 
-		xyz_buf_add(g_client.bufout, msg1, strlen(msg1));
-		xyz_buf_sprintf(g_client.bufout, "%s %s", g_client.tag, msg2);
-		xyz_buf_write(g_client.bufout, STDOUT_FILENO);
-	} else {
-		char *msg = "BAD Invalid argument\r\n";
+        xyz_buf_add(g_client.bufout, msg1, strlen(msg1));
+        xyz_buf_sprintf(g_client.bufout, "%s %s", g_client.tag, msg2);
+        xyz_buf_write(g_client.bufout, STDOUT_FILENO);
+    } else {
+        char *msg = "BAD Invalid argument\r\n";
 
-		xyz_buf_sprintf(g_client.bufout, "%s %s", g_client.tag, msg);
-		xyz_buf_write(g_client.bufout, STDOUT_FILENO);
-	}
+        xyz_buf_sprintf(g_client.bufout, "%s %s", g_client.tag, msg);
+        xyz_buf_write(g_client.bufout, STDOUT_FILENO);
+    }
 
-	return 0;
+    return 0;
 }
 
 int cmd_nosupport(void)
 {
-	printf("nosupport :: tag:[%s], cmd:[%s], args:[%s]\n", g_client.tag, g_client.cmd, g_client.args);
+    printf("nosupport :: tag:[%s], cmd:[%s], args:[%s]\n", g_client.tag, g_client.cmd, g_client.args);
 
-	char *msg = "BAD Please login first\r\n";
+    char *msg = "BAD Please login first\r\n";
 
-	xyz_buf_sprintf(g_client.bufout, "%s %s", g_client.tag, msg);
-	xyz_buf_write(g_client.bufout, STDOUT_FILENO);
+    xyz_buf_sprintf(g_client.bufout, "%s %s", g_client.tag, msg);
+    xyz_buf_write(g_client.bufout, STDOUT_FILENO);
 
-	return -1;
+    return -1;
 }
 
+/// read from client to bufin. used when no login.
+/// write to client  from bufout.
 int client_read(int fd, void *arg)
 {
-	char *tag, *cmd, *args;
-	int n, flag;
+    char *tag, *cmd, *args;
+    int n, flag;
 
-	n = xyz_buf_read(g_client.bufin, fd);
-	if(n == -1) {
-		xyz_event_stop(g_event);
-		return 0;
-	} else if(n == 0) {
-		return 0;
-	}
+    n = xyz_buf_read(g_client.bufin, fd);
+    if (n == -1) {
+        xyz_event_stop(g_event);
+        return 0;
+    } else if (n == 0) {
+        return 0;
+    }
 
-	g_client.lastcmd = time(NULL);
+    g_client.lastcmd = time(NULL);
 
-	bzero(g_line, sizeof(g_line));
-	n = xyz_buf_getline(g_client.bufin, g_line, LINE_MAX);
-	if(n == 0) {
-		printf("not full line get\n");
-		return 0;
-	} else if(n == -2) {
-		printf("line too lang drop it\n");
-		int len = strchr(xyz_buf_data(g_client.bufin), '\n') - xyz_buf_data(g_client.bufin);
-		xyz_buf_drop(g_client.bufin, len+1);
-		return 0;
-	} else if(n == -1) {
-		printf("buf inter error\n");
-		return 0;
-	}
-
-
-	bzero(g_client.cmd, sizeof(g_client.cmd));
-	bzero(g_client.tag, sizeof(g_client.tag));
-	bzero(g_client.args, sizeof(g_client.args));
-
-	flag = 0;
-	do {
-		// get tag.
-		tag = g_line;
-		cmd = strchr(tag, ' ');
-		if(cmd == NULL) {
-			// error
-			printf("line no space\n");
-			strncpy(g_client.tag, tag, sizeof(g_client.tag)-1);
-			break;
-		}
-		*cmd = '\0';
-		if(strlen(tag) == 0) {
-			printf("tag length is 0\n");
-			strncpy(g_client.tag, "*", 1);
-			break;
-		}
-		strncpy(g_client.tag, tag, sizeof(g_client.tag)-1);
-
-		// get cmd
-		cmd++;
-		if(strlen(cmd) == 0) {
-			// error
-			printf("command length is 0\n");
-			break;
-		}
-		// get args
-		args = strchr(cmd, ' ');
-		if(args == NULL) {
-			strncpy(g_client.cmd, cmd, sizeof(g_client.cmd)-1);
-		} else {
-			*args = '\0';
-			if(strlen(cmd) == 0) {
-				printf("command length is 0\n");
-				break;
-			}
-			strncpy(g_client.cmd, cmd, sizeof(g_client.cmd)-1);
-
-			// get arg
-			args++;	
-			if(strlen(args) > 0) {
-				strncpy(g_client.args, args, sizeof(g_client.args)-1);
-			} else {
-				printf("the end is a space\n");
-				break;
-			}
-		}
+    bzero(g_line, sizeof(g_line));
+    n = xyz_buf_getline(g_client.bufin, g_line, LINE_MAX);
+    if (n == 0) {
+        printf("not full line get\n");
+        return 0;
+    } else if (n == -2) {
+        printf("line too lang drop it\n");
+        int len = strchr(xyz_buf_data(g_client.bufin), '\n') - xyz_buf_data(g_client.bufin);
+        xyz_buf_drop(g_client.bufin, len+1);
+        return 0;
+    } else if (n == -1) {
+        printf("buf inter error\n");
+        return 0;
+    }
 
 
-		flag = 1;
-	} while(0);
+    bzero(g_client.cmd, sizeof(g_client.cmd));
+    bzero(g_client.tag, sizeof(g_client.tag));
+    bzero(g_client.args, sizeof(g_client.args));
+
+    flag = 0;
+    do {
+        // get tag.
+        tag = g_line;
+        cmd = strchr(tag, ' ');
+        if (cmd == NULL) {
+            // error
+            printf("line no space\n");
+            strncpy(g_client.tag, tag, sizeof(g_client.tag)-1);
+            break;
+        }
+        *cmd = '\0';
+        if (strlen(tag) == 0) {
+            printf("tag length is 0\n");
+            strncpy(g_client.tag, "*", 1);
+            break;
+        }
+        strncpy(g_client.tag, tag, sizeof(g_client.tag)-1);
+
+        // get cmd
+        cmd++;
+        if (strlen(cmd) == 0) {
+            // error
+            printf("command length is 0\n");
+            break;
+        }
+        // get args
+        args = strchr(cmd, ' ');
+        if (args == NULL) {
+            strncpy(g_client.cmd, cmd, sizeof(g_client.cmd)-1);
+        } else {
+            *args = '\0';
+            if (strlen(cmd) == 0) {
+                printf("command length is 0\n");
+                break;
+            }
+            strncpy(g_client.cmd, cmd, sizeof(g_client.cmd)-1);
+
+            // get arg
+            args++;
+            if (strlen(args) > 0) {
+                strncpy(g_client.args, args, sizeof(g_client.args)-1);
+            } else {
+                printf("the end is a space\n");
+                break;
+            }
+        }
 
 
-	if(flag == 0) {
-		char *msg = "BAD command not support\r\n";
-
-		xyz_buf_sprintf(g_client.bufout, "%s %s", g_client.tag, msg);
-		xyz_buf_write(g_client.bufout, STDOUT_FILENO);
-		
-		g_client.errcmd++;
-
-		return 0;
-	}
+        flag = 1;
+    } while (0);
 
 
-	if(strcasecmp(g_client.cmd, "login") == 0) {
-		n = cmd_login();
-	} else if(strcasecmp(g_client.cmd, "logout") == 0) {
-		n = cmd_logout();
-	} else if(strcasecmp(g_client.cmd, "capability") == 0) {
-		n = cmd_capa();
-	} else if(strcasecmp(g_client.cmd, "authenticate") == 0) {
-		n = cmd_auth();
-	} else if(strcasecmp(g_client.cmd, "id") == 0) {
-		n = cmd_id();
-	} else if(strcasecmp(g_client.cmd, "noop") == 0) {
-		n = cmd_noop();
-	} else {
-		// error
-		n = cmd_nosupport();
-	}
+    if (flag == 0) {
+        char *msg = "BAD command not support\r\n";
 
-	if(n == -1) {
-		g_client.errcmd++;
-	} else {
-		g_client.errcmd = 0;
-	}
+        xyz_buf_sprintf(g_client.bufout, "%s %s", g_client.tag, msg);
+        xyz_buf_write(g_client.bufout, STDOUT_FILENO);
 
-	return 0;
+        g_client.errcmd++;
+
+        return 0;
+    }
+
+
+    if (strcasecmp(g_client.cmd, "login") == 0) {
+        n = cmd_login();
+    } else if (strcasecmp(g_client.cmd, "logout") == 0) {
+        n = cmd_logout();
+    } else if (strcasecmp(g_client.cmd, "capability") == 0) {
+        n = cmd_capa();
+    } else if (strcasecmp(g_client.cmd, "authenticate") == 0) {
+        n = cmd_auth();
+    } else if (strcasecmp(g_client.cmd, "id") == 0) {
+        n = cmd_id();
+    } else if (strcasecmp(g_client.cmd, "noop") == 0) {
+        n = cmd_noop();
+    } else {
+        // error
+        n = cmd_nosupport();
+    }
+
+    if (n == -1) {
+        g_client.errcmd++;
+    } else {
+        g_client.errcmd = 0;
+    }
+
+    return 0;
 }
 
+/// write to client used bufout.
 int client_write(int fd, void *arg)
 {
-	int n; 
+    int n;
 
-	n = xyz_buf_write(g_client.bufout, fd); 
-	if(n == -1) {                                                                                                            
-		printf("client socket error\n");
-		xyz_event_stop(g_event);
-	}                                                                                                                        
+    n = xyz_buf_write(g_client.bufout, fd);
+    if (n == -1) {
+        printf("client socket error\n");
+        xyz_event_stop(g_event);
+    }
 
-	if(xyz_buf_length(g_client.bufout) == 0) {   
-		xyz_event_del(g_event, fd, EVTYPE_WT); 
-	}                                                                                                                        
+    if (xyz_buf_length(g_client.bufout) == 0) {
+        xyz_event_del(g_event, fd, EVTYPE_WT);
+    }
 
-	printf("to server write : %d", n);  
-
-	return n;                      
+    return n;
 }
 
+/// read from client used bufin.
 int client_trans(int fd, void *arg)
 {
-	int n;                                                                                                                   
+    int n;
 
-	g_client.lastcmd = time(NULL);                                                                                           
+	printf("trans server data\n");
 
-	n = xyz_buf_read(g_client.bufin, fd);
-	if(n == -1) {
-		printf("client socket error\n");
-		xyz_event_stop(g_event);  
-	}  
+    g_client.lastcmd = time(NULL);
 
-	if(n > 0) {                                                                                                              
-		xyz_event_add(g_event, g_client.servfd, EVTYPE_WT, server_write, &g_client);
-	}                                                                                                                        
+    n = xyz_buf_read(g_client.bufin, fd);
+    if (n == -1) {
+        printf("client socket error\n");
+        xyz_event_stop(g_event);
+    }
 
-	return n;           
+    if (xyz_buf_length(g_client.bufin) > 0) {
+        xyz_event_add(g_event, g_client.servfd, EVTYPE_WT, server_write, NULL);
+    }
+
+    return n;
 }
 
 
@@ -496,129 +567,145 @@ int client_trans(int fd, void *arg)
 
 int server_connect()
 {
-	int retval;
+    int retval;
 
-	g_client.servfd = xyz_sock_connect(g_client.servaddr, g_client.servport);                                                        
-	if(g_client.servfd == -1) {
-		char *msg = "NO Login failed, Service unavailable\r\n";
+    printf("connect to server 1\n");
+    printf("connect to server %s:%d\n", g_setting.servaddr, g_setting.servport);
 
-		xyz_buf_sprintf(g_client.bufout, "%s %s", g_client.tag, msg);
-		xyz_buf_write(g_client.bufout, STDOUT_FILENO);
+    g_client.servfd = xyz_sock_connect(g_setting.servaddr, g_setting.servport);
+    if (g_client.servfd == -1) {
+        char *msg = "NO Login failed, Service unavailable\r\n";
 
-		return -1;
-	}                                                                                                             
+        xyz_buf_sprintf(g_client.bufout, "%s %s", g_client.tag, msg);
+        xyz_buf_write(g_client.bufout, STDOUT_FILENO);
 
-	printf("connect to server");                                                                                       
+        return -1;
+    }
 
-	// set to noblock.                                                                                               
-	xyz_event_del(g_event, STDIN_FILENO, EVTYPE_RD);                                                                     
+    printf("connect to server 2\n");
 
-	g_client.servstat = 0;
+    // when connect to server, not used client_read to read client data.
+    xyz_event_del(g_event, STDIN_FILENO, EVTYPE_RD);
 
-	xyz_sock_noblock(g_client.servfd);                                                                                      
-	xyz_event_add(g_event, g_client.servfd, EVTYPE_RD, server_read, NULL);                                            
+    g_client.servstat = 0;
 
-	return 0;
+    xyz_sock_noblock(g_client.servfd);
+    xyz_event_add(g_event, g_client.servfd, EVTYPE_RD, server_read, NULL);
+
+    return 0;
 }
 
+/// read form server used bufout.
 int server_read(int fd, void *arg)
 {
-	int n;
-	char tmphead[1024];
+    int n;
 
-	n = xyz_buf_read(g_client.bufin, fd);
-	if(n == -1) {
-		xyz_event_stop(g_event);
-		return 0;
-	} else if(n == 0) {
-		return 0;
-	}
+    printf("server has some data\n");
 
-	bzero(g_line, sizeof(g_line));
-	n = xyz_buf_getline(g_client.bufin, g_line, LINE_MAX);
-	if(n == 0) {
-		printf("not full line get\n");
-		return 0;
-	} else if(n == -2) {
-		printf("line too lang drop it\n");
-		int len = strchr(xyz_buf_data(g_client.bufin), '\n') - xyz_buf_data(g_client.bufin);
-		xyz_buf_drop(g_client.bufin, len+1);
-		return 0;
-	} else if(n == -1) {
-		printf("buf inter error\n");
-		return 0;
-	}
+    n = xyz_buf_read(g_client.bufout, fd);
+    if (n == -1) {
+        xyz_event_stop(g_event);
+        return 0;
+    } else if (n == 0) {
+        return 0;
+    }
 
-	// case 1
-	if(g_client.servstat == 0) {
-		if(strncasecmp("* OK ", g_line, 5) != 0) {
-			printf("server error\n");
-			return -1;
-		}
+    bzero(g_line, sizeof(g_line));
+    n = xyz_buf_getline(g_client.bufout, g_line, LINE_MAX);
+    if (n == 0) {
+        printf("not full line get\n");
+        return 0;
+    } else if (n == -2) {
+        printf("line too lang drop it\n");
+        int len = strchr(xyz_buf_data(g_client.bufout), '\n') - xyz_buf_data(g_client.bufout);
+        xyz_buf_drop(g_client.bufout, len+1);
+        return 0;
+    } else if (n == -1) {
+        printf("buf inter error\n");
+        return 0;
+    }
 
-		g_client.servstat = 1;
+	printf("get server lint : %s\n", g_line);
 
-		xyz_buf_sprintf(g_client.bufout, "%s LOGIN %s %s\r\n", g_client.tag, g_client.user, g_client.passwd);
-		xyz_buf_write(g_client.bufout, g_client.servfd);   
+    // case 1
+    if (g_client.servstat == 0) {
+        if (strncasecmp("* OK ", g_line, 5) != 0) {
+            printf("server error\n");
+            return -1;
+        }
+
+        g_client.servstat = 1;
+
+        xyz_buf_sprintf(g_client.bufout, "%s LOGIN %s %s\r\n", g_client.tag, g_client.user, g_client.passwd);
+        xyz_buf_write(g_client.bufout, g_client.servfd);
+
+        return 0;
+    }
+
+    // case 2
+    if (g_client.servstat == 1) {
+		char tmphead[1024];
+
+        bzero(tmphead, sizeof(tmphead));
+        snprintf(tmphead, sizeof(tmphead), "%s OK ", g_client.tag);
+
+        if (strncasecmp(tmphead, g_line, strlen(tmphead)) != 0) {
+            printf("server error\n");
+            return -1;
+        }
+
+        g_client.servstat = 2;
+
+        xyz_buf_add(g_client.bufout, g_line, strlen(g_line));
+        xyz_buf_write(g_client.bufout, STDOUT_FILENO);
 		
-		return 0;
-	}
+		/// when login server sucessed, use server_trand() read server data
+		/// and used client_trans() read client date
+        xyz_event_add(g_event, g_client.servfd, EVTYPE_RD, server_trans, NULL);
+        xyz_event_add(g_event, STDIN_FILENO, EVTYPE_RD, client_trans, NULL);
 
-	// case 2
-	if(g_client.servstat == 1) {
-		bzero(tmphead, sizeof(tmphead));
-		snprintf(tmphead, sizeof(tmphead), "%s OK ", g_client.tag);
+        return 0;
+    }
 
-		if(strncasecmp(tmphead, g_line, strlen(tmphead)) != 0) {
-			printf("server error\n");
-			return -1;
-		}
-
-		g_client.servstat = 2;
-
-		xyz_event_add(g_event, g_client.servfd, EVTYPE_RD, server_trans, NULL);                                            
-		xyz_event_add(g_event, STDIN_FILENO, EVTYPE_RD, client_trans, NULL);
-
-		return 0;
-	}
-
-	return 0;
+    return 0;
 }
 
+// write to server used bufin.
 int server_write(int fd, void *arg)
 {
-	int n; 
+    int n;
 
-	n = xyz_buf_write(g_client.bufin, fd); 
-	if(n == -1) {                                                                                                            
-		printf("client socket error\n");
-		xyz_event_stop(g_event);
-	}                                                                                                                        
+    n = xyz_buf_write(g_client.bufin, fd);
+    if (n == -1) {
+        printf("client socket error\n");
+        xyz_event_stop(g_event);
+    }
 
-	if(xyz_buf_length(g_client.bufin) == 0) {   
-		xyz_event_del(g_event, fd, EVTYPE_WT); 
-	}                                                                                                                        
+    if (xyz_buf_length(g_client.bufin) == 0) {
+        xyz_event_del(g_event, fd, EVTYPE_WT);
+    }
 
-	printf("to client write : %d", n);  
-
-	return n; 
+    return n;
 }
 
+// read from server used bufout.
 int server_trans(int fd, void *arg)
 {
-	int n;                                                                                                                   
+    int n;
 
-	n = xyz_buf_read(g_client.bufout, fd);
-	if(n == -1) {
-		printf("server socket error\n");
-		xyz_event_stop(g_event);  
-	}  
+	printf("trans server data\n");
 
-	if(n > 0) {                                                                                                              
-		xyz_event_add(g_event, STDOUT_FILENO, EVTYPE_WT, client_write, NULL);
-	}                                                                                                                        
+    n = xyz_buf_read(g_client.bufout, fd);
+    if (n == -1) {
+        printf("server socket error\n");
+        xyz_event_stop(g_event);
+    }
 
-	return n;           
+    if (xyz_buf_length(g_client.bufout) > 0) {
+        xyz_event_add(g_event, STDOUT_FILENO, EVTYPE_WT, client_write, NULL);
+    }
+
+    return n;
 }
 
 
@@ -632,73 +719,72 @@ int server_trans(int fd, void *arg)
 // main
 //
 
-
 void usage()
 {
-	printf("Usage:\n");
-	printf("\t-f <file> : config file\n");
+    printf("Usage:\n");
+    printf("\t-f <file> : config file\n");
 
-	return;
+    return;
 }
 
 void setopt(int argc, char *argv[])
 {
-	int opt;
+    int opt;
 
-	while((opt = getopt(argc, argv, "f:")) != -1) {
-		switch(opt) {
-			case 'f':
-				strncpy(g_confile, optarg, sizeof(g_confile)-1);
-				break;
-			default:
-				usage();
-				exit(0);
-				break;
-		}
-	}
+    while ((opt = getopt(argc, argv, "f:")) != -1) {
+        switch (opt) {
+        case 'f':
+            strncpy(g_confile, optarg, sizeof(g_confile)-1);
+            break;
+        default:
+            usage();
+            exit(0);
+            break;
+        }
+    }
 
-	if(strlen(g_confile) == 0) {
-		strncpy(g_confile, DEFAULT_CONF, sizeof(g_confile)-1);
-	}
+    if (strlen(g_confile) == 0) {
+        strncpy(g_confile, DEFAULT_CONF, sizeof(g_confile)-1);
+    }
 
-	return;
+    return;
 }
 
 void init(void)
 {
-	g_config = NULL;
-	g_event = NULL;
+    g_event = NULL;
 
-	return;
+    return;
 }
 
 int main(int argc, char *argv[])
 {
-	xyz_log_open("imap-proxy" , LOG_MAIL, LOG_DEBUG);
+    xyz_log_open("imapproxy" , LOG_MAIL, LOG_DEBUG);
+    LOGD("program start");
 
-	setopt(argc, argv);
-	g_config = xyz_conf_load(g_confile);
+    setopt(argc, argv);
 
-	g_setting.timeout = 10;
-	g_setting.errcmd = 5;
-	client_init();
+	setting_init();
+	setting_load();
 
-	g_event = xyz_event_create();
-	if(g_event == NULL) {
-		return 0;
-	}
+    client_init();
 
-	xyz_event_call(g_event, client_check);
-	xyz_event_add(g_event, STDIN_FILENO, EVTYPE_RD, client_read, NULL);
-	xyz_event_loop(g_event);
+    g_event = xyz_event_create();
+    if (g_event == NULL) {
+        printf("create event error\n");
+        return 0;
+    }
 
-	xyz_conf_destroy(g_config);
-	xyz_event_destroy(g_event);
+    xyz_event_call(g_event, client_check);
+    xyz_event_add(g_event, STDIN_FILENO, EVTYPE_RD, client_read, NULL);
+    xyz_event_loop(g_event);
 
-	LOGD("program exit");
-	xyz_log_close();
+    xyz_event_destroy(g_event);
 
-	return 0;
+    LOGD("program exit");
+    xyz_log_close();
+
+    return 0;
 }
 
 
