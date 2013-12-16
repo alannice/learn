@@ -560,10 +560,6 @@ int client_trans(int fd, void *arg)
         LOGI("read from client error");
         xyz_event_stop(g_event);
 		return -1;
-    } else if(n == 0) {
-        LOGI("read from client error2");
-        xyz_event_stop(g_event);
-		return -1;
     } 
 
 	LOGD("read from client : %s", xyz_buf_data(g_client.bufin));
@@ -572,8 +568,6 @@ int client_trans(int fd, void *arg)
 		LOGD("add event for write to server");
         xyz_event_add(g_event, g_client.servfd, EVTYPE_WT, server_write, NULL);
     }
-
-	xyz_event_stat(g_event);
 
     return n;
 }
@@ -719,14 +713,9 @@ int server_trans(int fd, void *arg)
         LOGE("read from server error");
         xyz_event_stop(g_event);
 		return -1;
-    } else if(n == 0) {
-		LOGE("read from server error2");
-		xyz_event_stat(g_event);
-        xyz_event_stop(g_event);
-		return -1;
-	}
+    }
 
-	LOGD("read from server : %s", xyz_buf_data(g_client.bufout));
+	// LOGD("read from server : %s", xyz_buf_data(g_client.bufout));
 
     if (xyz_buf_length(g_client.bufout) > 0) {
         xyz_event_add(g_event, STDOUT_FILENO, EVTYPE_WT, client_write, NULL);
