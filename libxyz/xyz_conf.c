@@ -16,7 +16,7 @@ FILE *xyz_conf_open(char *file)
 	}
 
 	if(file[0] == '/' || file[0] == '.') {
-		printf("1 config : %s\n", file);
+		//printf("1 config : %s\n", file);
 		fp = fopen(file, "r");
 		if(fp == NULL) {
 			return NULL;
@@ -27,7 +27,7 @@ FILE *xyz_conf_open(char *file)
 	bzero(filepath, sizeof(filepath));
 	snprintf(filepath, sizeof(filepath)-1, "/etc/%s", file);
 	if(access(filepath, R_OK) == 0) {
-		printf("2 config : %s\n", filepath);
+		//printf("2 config : %s\n", filepath);
 		fp = fopen(filepath, "r");
 		if(fp == NULL) {
 			return NULL;
@@ -38,7 +38,7 @@ FILE *xyz_conf_open(char *file)
 	bzero(filepath, sizeof(filepath));
 	snprintf(filepath, sizeof(filepath)-1, "/usr/local/etc/%s", file);
 	if(access(filepath, R_OK) == 0) {
-		printf("3 config : %s\n", filepath);
+		//printf("3 config : %s\n", filepath);
 		fp = fopen(filepath, "r");
 		if(fp == NULL) {
 			return NULL;
@@ -51,7 +51,7 @@ FILE *xyz_conf_open(char *file)
 	strncat(filepath, "/", sizeof(filepath)-strlen(filepath)-1);
 	strncat(filepath, file, sizeof(filepath)-strlen(filepath)-1);
 	if(access(filepath, R_OK) == 0) {
-		printf("4 config : %s\n", filepath);
+		//printf("4 config : %s\n", filepath);
 		fp = fopen(filepath, "r");
 		if(fp == NULL) {
 			return NULL;
@@ -59,7 +59,7 @@ FILE *xyz_conf_open(char *file)
 		return fp;
 	}
 
-	printf("5 not find config : %s\n", filepath);
+	//printf("5 not find config : %s\n", filepath);
 
 	return NULL;
 }
