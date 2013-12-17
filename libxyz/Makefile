@@ -15,13 +15,13 @@ ARFLAGS= -crs
 CC=gcc
 CFLAGS= -ggdb -fPIC
 LDFLAGS=
-LIBS=
+LIBS= -lssl
 
 
-SOURCE=xyz_buf.c  xyz_conf.c  xyz_event.c  xyz_list.c  xyz_log.c  xyz_mpool.c  xyz_sock.c 
-HEADER=xyz_buf.h  xyz_conf.h  xyz_event.h  xyz_list.h  xyz_log.h  xyz_mpool.h  xyz_sock.h
+SOURCE=xyz_buf.c  xyz_conf.c  xyz_event.c  xyz_list.c  xyz_log.c  xyz_mpool.c  xyz_sock.c xyz_ssl.c
+HEADER=xyz_buf.h  xyz_conf.h  xyz_event.h  xyz_list.h  xyz_log.h  xyz_mpool.h  xyz_sock.h xyz_ssl.h
 
-OBJECT=xyz_buf.o xyz_conf.o xyz_event.o xyz_list.o xyz_log.o xyz_mpool.o xyz_sock.o 
+OBJECT=xyz_buf.o xyz_conf.o xyz_event.o xyz_list.o xyz_log.o xyz_mpool.o xyz_sock.o xyz_ssl.o
 
 .PHONY:all 
 

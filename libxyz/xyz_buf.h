@@ -2,6 +2,8 @@
 #ifndef __XYZ_BUF_H__
 #define __XYZ_BUF_H__
 
+#include "xyz_ssl.h"
+
 struct xyz_buf_t
 {
 	char label[32];
@@ -23,6 +25,9 @@ int xyz_buf_drop(struct xyz_buf_t *buf, int len);
 char *xyz_buf_data(struct xyz_buf_t *buf);
 int xyz_buf_length(struct xyz_buf_t *buf);
 void xyz_buf_stat(struct xyz_buf_t *buf);
+
+int xyz_buf_sslread(struct xyz_buf_t *buf, struct xyz_ssl_t *ossl); 
+int xyz_buf_sslwrite(struct xyz_buf_t *buf, struct xyz_ssl_t *ossl);
 
 int xyz_buf_getline(struct xyz_buf_t *buf, char *data, int len);
 int xyz_buf_getword(struct xyz_buf_t *buf, char *data, int len);
