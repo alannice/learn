@@ -167,6 +167,44 @@ int our_auth(void)
     return 0;
 }
 
+int email_check(void)
+{
+    if(g_client.user[strlen(g_client.user)-1] == '@') {
+        strncat(g_client.user, g_setting.defdomain, sizeof(g_client.user)-strlen(g_client.user)-1);
+    }
+    if(strchr(g_client.user, '@') == NULL) {
+        strncat(g_client.user, "@", sizeof(g_client.user)-strlen(g_client.user)-1);
+        strncat(g_client.user, g_setting.defdomain, sizeof(g_client.user)-strlen(g_client.user)-1);
+    }
+
+    return 0;
+}
+
+int imparse_isatom( const char *s )
+{
+    int len = 0;
+
+    if (!*s) 
+        return 0;
+
+    for (; *s; s++) {
+        len++;
+        if (*s & 0x80 || *s < 0x1f || *s == 0x7f ||
+                *s == ' ' || *s == '{' || *s == '(' || *s == ')' ||
+                *s == '\"' || *s == '%' || *s == '*' || *s == '\\') 
+            return 0;
+    }
+
+    if (len >= 998) 
+        return 0;
+
+    return 1;
+}
+
+//////////////////////////////////////////////////////////////////////////////
+// command process
+//
+
 int cmd_login(void)
 {
     char *user, *passwd;
@@ -213,7 +251,14 @@ int cmd_login(void)
         return -1;
     }
 
-    LOGI("login :: user:[%s], passwd:[%s]", user, passwd);
+    bzero(g_client.user, sizeof(g_client.user));
+    strncpy(g_client.user, user, sizeof(g_client.user)-1);
+    bzero(g_client.passwd, sizeof(g_client.passwd));
+    strncpy(g_client.passwd, passwd, sizeof(g_client.passwd)-1);
+
+    email_check();
+        
+    LOGI("login :: user:[%s], passwd:[%s]", g_client.user, g_client.passwd);
 
     // auth ...
     int retval = our_auth();
@@ -227,11 +272,6 @@ int cmd_login(void)
         
         return -1;
     }
-
-    bzero(g_client.user, sizeof(g_client.user));
-    strncpy(g_client.user, user, sizeof(g_client.user)-1);
-    bzero(g_client.passwd, sizeof(g_client.passwd));
-    strncpy(g_client.passwd, passwd, sizeof(g_client.passwd)-1);
 
     LOGI("login :: auth sucessed");
 
@@ -337,7 +377,8 @@ int cmd_id(void)
 {
     LOGD("id :: tag:[%s], cmd:[%s], args:[%s]", g_client.tag, g_client.cmd, g_client.args);
 
-    if (strlen(g_client.args) > 0) {
+    if (strlen(g_client.args) > 0 && g_client.args[0] == '(' && 
+            g_client.args[strlen(g_client.args)-1] == ')') {
         char *msg1 = "* ID (\"name\" \"sina imap server\" \"vendor\" \"sina\")\r\n";
         char *msg2 = "OK ID Completed\r\n";
 
@@ -475,6 +516,11 @@ int client_read(int fd, void *arg)
             strncpy(g_client.tag, "*", 1);
             break;
         }
+        if( !imparse_isatom(tag) ) {
+            LOGD("tag is not a atom string");
+            strncpy(g_client.tag, "*", 1);
+            break;
+        }
         strncpy(g_client.tag, tag, sizeof(g_client.tag)-1);
 
         // get cmd
@@ -608,7 +654,7 @@ int server_connect()
         return -1;
     }
 
-    LOGI("connect to server OK %s:%d", g_setting.servaddr, g_setting.servport);
+    LOGI("connected to server : %s:%d", g_setting.servaddr, g_setting.servport);
 
     /// when connect to server, not used client_read to read client data.
     xyz_event_del(g_event, STDIN_FILENO, EVTYPE_RD);
@@ -664,7 +710,7 @@ int server_read(int fd, void *arg)
             xyz_buf_write(g_client.bufout, STDOUT_FILENO);
             xyz_event_stop(g_event);
 
-            LOGE("server respone error\n");
+            LOGE("server connect respone error");
             return -1;
         }
 
@@ -690,7 +736,7 @@ int server_read(int fd, void *arg)
             xyz_buf_write(g_client.bufout, STDOUT_FILENO);
             xyz_event_stop(g_event);
 
-            LOGE("server login respone error\n");
+            LOGE("server login respone error");
             return -1;
         }
 
@@ -810,6 +856,8 @@ int main(int argc, char *argv[])
         LOGE("config file set error");
         return 0;
     }
+
+    //xyz_log_close();
     xyz_log_open("imapproxy" , LOG_MAIL, g_setting.loglevel);
 
     client_init();
@@ -825,10 +873,10 @@ int main(int argc, char *argv[])
     xyz_event_loop(g_event);
     xyz_event_destroy(g_event);
 
+    client_destroy();
+
     LOGE("program exit, run %d second", time(NULL)-g_starttime);
     xyz_log_close();
-
-    client_destroy();
 
     return 0;
 }
