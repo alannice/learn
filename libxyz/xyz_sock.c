@@ -139,7 +139,7 @@ int xyz_sock_peeraddr(int sockfd, char *addr, int len)
         return -1;
     }
 
-    paddr = inet_ntoa(((struct sockaddr_in *)&sa_in)->sin_addr);
+    paddr = inet_ntoa(sa_in.sin_addr);
     pport = ntohs(sa_in.sin_port);
 
     if(paddr == NULL) {
@@ -170,14 +170,18 @@ void xyz_sock_setopt(int sockfd)
 
 //////////////////////////////////////////////////////////////////////////////
 
-#if 0
+#if 1
 int main(int argc, char *argv[])
 {
 	int fd;
 	
 	//sock_listen(NULL, 12345);
-	fd = xyz_sock_connect("localhost", 12345);
+	fd = xyz_sock_connect("imap.sina.com", 143);
 	printf("connect on %d\n", fd);
+
+	char ip[32];
+	xyz_sock_peeraddr(fd, ip, 30);
+	printf("ip is :%s\n", ip);
 
 	return 0;
 }
