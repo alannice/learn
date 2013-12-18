@@ -12,7 +12,7 @@ TARGETA=$(MYLIB).a
 AR=ar
 ARFLAGS= -crs
 
-CC=gcc
+CC=clang
 CFLAGS= -ggdb -fPIC
 LDFLAGS=
 LIBS= -lssl

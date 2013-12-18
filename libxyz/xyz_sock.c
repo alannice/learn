@@ -11,6 +11,7 @@
 #include <netdb.h>
 #include <fcntl.h>
 #include <netinet/tcp.h>
+#include <arpa/inet.h>
 
 #include "xyz_sock.h"
 
@@ -123,6 +124,31 @@ int xyz_sock_connect(char *addr, int port)
 	}
 
 	return sockfd;
+}
+
+int xyz_sock_peeraddr(int sockfd, char *addr, int len)
+{
+    struct sockaddr_in sa_in;
+    socklen_t sa_len;  
+    char *paddr;
+    int pport;
+
+    bzero(&sa_in, sizeof(struct sockaddr_in));
+    if(getpeername(sockfd, (struct sockaddr *)&sa_in, &sa_len ) < 0)
+    {
+        return -1;
+    }
+
+    paddr = inet_ntoa(((struct sockaddr_in *)&sa_in)->sin_addr);
+    pport = ntohs(sa_in.sin_port);
+
+    if(paddr == NULL) {
+        return -1;
+    }
+
+    strncpy(addr, paddr, len);
+
+    return 0;
 }
 
 void xyz_sock_setopt(int sockfd)
