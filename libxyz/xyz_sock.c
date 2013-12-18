@@ -170,7 +170,7 @@ void xyz_sock_setopt(int sockfd)
 
 //////////////////////////////////////////////////////////////////////////////
 
-#if 1
+#if 0
 int main(int argc, char *argv[])
 {
 	int fd;
