@@ -308,12 +308,12 @@ int cmd_login(void)
 		xyz_buf_sprintf(g_client.bufout, "%s %s", g_client.tag, msg1);
 		smart_cliwrite(g_client.bufout, STDOUT_FILENO);
 
-		LOGE("login:: connect server falied.");
+		LOGE("login :: connect server falied.");
 
 		return -1;
 	}
 
-	LOGI("login:: connect server sucessed.");
+	LOGI("login :: connect server sucessed.");
 
 	return 0;
 }
