@@ -2,21 +2,27 @@
 ## imapproxy.conf
 ############################################################
 
-# default email domain
+# default email domain.
 defdomain = sina.com
 
-# email server address
+# email server address.
 servaddr = imap.sina.com
 
-# email server port
+# email server port.
 servport = 143
 
-# log message level, default 6
+# log message level, default 6.
 loglevel = 7
 
-# client no data timeout, default 30 second
+# client no data timeout, default 30 second.
 timeout = 60
 
-# client max error command in succession, default 5 
+# client max error command in succession, default 5.
 errcmd = 5
+
+# 0: not use ssl; 1: use ssl. default is 0.
+usessl = 0;
+
+# ssl pem file, mast set.
+pemfile = "/usr/local/etc/imapproxy/imapproxy.pem
 

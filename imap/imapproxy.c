@@ -18,6 +18,7 @@
 #include <xyz_buf.h>
 #include <xyz_conf.h>
 #include <xyz_log.h>
+#include <xyz_ssl.h>
 
 //////////////////////////////////////////////////////////////////////////////
 // global
@@ -43,9 +44,12 @@ struct client_t {
     time_t lastcmd;					// 客户端最后一条指令(数据)的时间.
 
     char cliaddr[CLI_STRLEN+1];		// 客户端IP地址.
+    char servaddr[CLI_STRLEN+1];	// 服务器IP地址.
 
     int servfd;						// 服务器端SOCKET连接描述符.
     int servstat;					// 服务器端连接的状态,0:初始状态;1:收到服务OK回应;2:收到登录OK回应.
+
+    struct xyz_ssl_t *ossl;          // SSL信息.
 };
 
 /// 保存配置文件信息.
@@ -56,6 +60,8 @@ struct setting_t {
     int timeout;					// 客户端无数据的超时时间, 秒.
     int errcmd;						// 客户端连接错误的上限.
     int loglevel;					// 日志级别, 1~7, 一般为6或7.
+    int usessl;                     // 是否是用SSL连接.
+    char pemfile[CLI_STRLEN+1];     // SSL的PEM证书文件.
 };
 
 struct client_t g_client;			// 保存客户端相关信息.
@@ -94,6 +100,9 @@ int cmd_auth(void);
 int cmd_id(void);
 int cmd_nosupport(void);
 
+// main
+int smart_cliread(struct xyz_buf_t *buf, int fd); 
+int smart_cliwrite(struct xyz_buf_t *buf, int fd); 
 
 //////////////////////////////////////////////////////////////////////////////
 // load config
@@ -106,6 +115,8 @@ int setting_init(void)
     g_setting.timeout = 30;
     g_setting.loglevel = 6;
     g_setting.errcmd = 5;
+
+    g_setting.usessl = 0;
 
     return 0;
 }
@@ -138,20 +149,32 @@ int setting_load(void)
     if (xyz_conf_number(conf, "errcmd") > 0) {
         g_setting.errcmd = xyz_conf_number(conf, "errcmd");
     }
+    if (xyz_conf_number(conf, "usessl") > 0) {
+        g_setting.errcmd = xyz_conf_number(conf, "usessl");
+    }
+    if (xyz_conf_number(conf, "pemfile") > 0) {
+        strncpy(g_setting.pemfile, xyz_conf_string(conf, "pemfile"), sizeof(g_setting.pemfile)-1);
+    }
 
     xyz_conf_destroy(conf);
 
-    if (strlen(g_setting.defdomain) == 0) {
+    if(strlen(g_setting.defdomain) == 0) {
         LOGE("not set default domain");
         return -1;
     }
-    if (strlen(g_setting.servaddr) == 0) {
+    if(strlen(g_setting.servaddr) == 0) {
         LOGE("not set server addr");
         return -1;
     }
-    if (g_setting.servport == 0) {
+    if(g_setting.servport == 0) {
         LOGE("not set server port");
         return -1;
+    }
+    if(g_setting.usessl) {
+        if(strlen(g_setting.pemfile) == 0) {
+            LOGE("use ssl but not set pemfile");
+            return -1;
+        }
     }
 
     return 0;
@@ -209,6 +232,7 @@ int cmd_login(void)
 {
     char *user, *passwd;
     int flag = 0;
+    int retval;
 
     LOGD("login :: tag:[%s], cmd:[%s], args:[%s]", g_client.tag, g_client.cmd, g_client.args);
 
@@ -246,7 +270,7 @@ int cmd_login(void)
         char *msg1 = "BAD Request error\r\n";
 
         xyz_buf_sprintf(g_client.bufout, "%s %s", g_client.tag, msg1);
-        xyz_buf_write(g_client.bufout, STDOUT_FILENO);
+        smart_cliwrite(g_client.bufout, STDOUT_FILENO);
 
         return -1;
     }
@@ -260,13 +284,13 @@ int cmd_login(void)
         
     LOGI("login :: user:[%s], passwd:[%s]", g_client.user, g_client.passwd);
 
-    // auth ...
-    int retval = our_auth();
-    if (retval == -1) {
+    /// 认证.
+    retval = our_auth();
+    if( retval == -1) { 
         char *msg1 = "NO LOGIN Login or password error\r\n";
 
         xyz_buf_sprintf(g_client.bufout, "%s %s", g_client.tag, msg1);
-        xyz_buf_write(g_client.bufout, STDOUT_FILENO);
+        smart_cliwrite(g_client.bufout, STDOUT_FILENO);
 
         LOGE("login :: auth failed");
         
@@ -275,12 +299,13 @@ int cmd_login(void)
 
     LOGI("login :: auth sucessed");
 
+    /// 连接服务器.
     retval = server_connect();
     if (retval == -1) {
         char *msg1 = "NO Login failed, Service unavailable\r\n";
 
         xyz_buf_sprintf(g_client.bufout, "%s %s", g_client.tag, msg1);
-        xyz_buf_write(g_client.bufout, STDOUT_FILENO);
+        smart_cliwrite(g_client.bufout, STDOUT_FILENO);
 
         LOGE("login:: connect server falied");
 
@@ -308,7 +333,7 @@ int cmd_logout(void)
 
     xyz_buf_add(g_client.bufout, msg1, strlen(msg1));
     xyz_buf_sprintf(g_client.bufout, "%s %s", g_client.tag, msg2);
-    xyz_buf_write(g_client.bufout, STDOUT_FILENO);
+    smart_cliwrite(g_client.bufout, STDOUT_FILENO);
     xyz_event_stop(g_event);
 
     return 0;
@@ -330,7 +355,7 @@ int cmd_capa(void)
 
     xyz_buf_add(g_client.bufout, msg1, strlen(msg1));
     xyz_buf_sprintf(g_client.bufout, "%s %s", g_client.tag, msg2);
-    xyz_buf_write(g_client.bufout, STDOUT_FILENO);
+    smart_cliwrite(g_client.bufout, STDOUT_FILENO);
 
     return 0;
 }
@@ -349,7 +374,7 @@ int cmd_noop(void)
     char *msg = "OK NOOP completed\r\n";
 
     xyz_buf_sprintf(g_client.bufout, "%s %s", g_client.tag, msg);
-    xyz_buf_write(g_client.bufout, STDOUT_FILENO);
+    smart_cliwrite(g_client.bufout, STDOUT_FILENO);
 
     return 0;
 }
@@ -368,7 +393,7 @@ int cmd_auth(void)
     char *msg = "BAD command not support\r\n";
 
     xyz_buf_sprintf(g_client.bufout, "%s %s", g_client.tag, msg);
-    xyz_buf_write(g_client.bufout, STDOUT_FILENO);
+    smart_cliwrite(g_client.bufout, STDOUT_FILENO);
 
     return 0;
 }
@@ -384,12 +409,12 @@ int cmd_id(void)
 
         xyz_buf_add(g_client.bufout, msg1, strlen(msg1));
         xyz_buf_sprintf(g_client.bufout, "%s %s", g_client.tag, msg2);
-        xyz_buf_write(g_client.bufout, STDOUT_FILENO);
+        smart_cliwrite(g_client.bufout, STDOUT_FILENO);
     } else {
         char *msg = "BAD Invalid argument\r\n";
 
         xyz_buf_sprintf(g_client.bufout, "%s %s", g_client.tag, msg);
-        xyz_buf_write(g_client.bufout, STDOUT_FILENO);
+        smart_cliwrite(g_client.bufout, STDOUT_FILENO);
     }
 
     return 0;
@@ -402,7 +427,7 @@ int cmd_nosupport(void)
     char *msg = "BAD Please login first\r\n";
 
     xyz_buf_sprintf(g_client.bufout, "%s %s", g_client.tag, msg);
-    xyz_buf_write(g_client.bufout, STDOUT_FILENO);
+    smart_cliwrite(g_client.bufout, STDOUT_FILENO);
 
     return -1;
 }
@@ -425,7 +450,7 @@ int client_init(void)
 
     char *msg = "* OK IMAPrev1 Proxy ready\r\n";
     xyz_buf_add(g_client.bufout, msg, strlen(msg));
-    xyz_buf_write(g_client.bufout, STDOUT_FILENO);
+    smart_cliwrite(g_client.bufout, STDOUT_FILENO);
 
     return 0;
 }
@@ -446,6 +471,7 @@ void client_destroy(void)
     return;
 }
 
+/// 检查超时和错误次数过多.
 int client_check(void)
 {
     if ((time(NULL)-g_client.lastcmd) > g_setting.timeout) {
@@ -462,14 +488,15 @@ int client_check(void)
 }
 
 
-/// read from client to bufin. used when no login.
-/// write to client  from bufout.
+/// 读取客户端信息放到bufin中,并解析用户输入指令.
+/// 结果放到bufout中,输出到客户端.
+/// 在客户端成功连接服务器前使用.
 int client_read(int fd, void *arg)
 {
     char *tag, *cmd, *args;
     int n, flag;
 
-    n = xyz_buf_read(g_client.bufin, fd);
+    n = smart_cliread(g_client.bufin, fd);
     if (n == -1) {
         LOGE("read client data error");
         xyz_event_stop(g_event);
@@ -559,7 +586,7 @@ int client_read(int fd, void *arg)
         char *msg = "BAD command not support\r\n";
 
         xyz_buf_sprintf(g_client.bufout, "%s %s", g_client.tag, msg);
-        xyz_buf_write(g_client.bufout, STDOUT_FILENO);
+        smart_cliwrite(g_client.bufout, STDOUT_FILENO);
 
         g_client.errcmd++;
 
@@ -594,12 +621,12 @@ int client_read(int fd, void *arg)
     return 0;
 }
 
-/// write to client used bufout.
+/// 将bufout中数据输出到客户端.
 int client_write(int fd, void *arg)
 {
     int n;
 
-    n = xyz_buf_write(g_client.bufout, fd);
+    n = smart_cliwrite(g_client.bufout, fd);
     if (n == -1) {
         LOGE("write to client error");
         xyz_event_stop(g_event);
@@ -617,14 +644,15 @@ int client_write(int fd, void *arg)
     return n;
 }
 
-/// read from client used bufin.
+/// 连接成功服务器后,读取客户端数据,并放到bufin中.
+/// 并调用server_write输出到服务器.
 int client_trans(int fd, void *arg)
 {
     int n;
 
     g_client.lastcmd = time(NULL);
 
-    n = xyz_buf_read(g_client.bufin, fd);
+    n = smart_cliread(g_client.bufin, fd);
     if (n == -1) {
         LOGE("read from client error");
         xyz_event_stop(g_event);
@@ -654,9 +682,12 @@ int server_connect()
         return -1;
     }
 
-    LOGI("connected to server : %s:%d", g_setting.servaddr, g_setting.servport);
+    retval = xyz_sock_peeraddr(g_client.servfd, g_client.servaddr, sizeof(g_client.servaddr)-1);
+    if(retval == 0) {
+        LOGI("connected to server : %s(%s):%d", g_setting.servaddr, g_client.servaddr, g_setting.servport);
+    }
 
-    /// when connect to server, not used client_read to read client data.
+    /// 连接到服务器后,就不再使用client_read读取客户端数据.
     xyz_event_del(g_event, STDIN_FILENO, EVTYPE_RD);
 
     g_client.servstat = 0;
@@ -667,7 +698,7 @@ int server_connect()
     return 0;
 }
 
-/// read form server used bufout.
+/// 读取服务端数据,并解析指令.直到收到LOGIN成功信息.
 int server_read(int fd, void *arg)
 {
     int n;
@@ -677,7 +708,7 @@ int server_read(int fd, void *arg)
         char *msg = "NO Login failed, Service unavailable\r\n";
 
         xyz_buf_sprintf(g_client.bufout, "%s %s", g_client.tag, msg);
-        xyz_buf_write(g_client.bufout, STDOUT_FILENO);
+        smart_cliwrite(g_client.bufout, STDOUT_FILENO);
         xyz_event_stop(g_event);
 
         LOGE("read from server error");
@@ -701,13 +732,13 @@ int server_read(int fd, void *arg)
         return 0;
     }
 
-    // case 1
+    // case 1 server ready.
     if (g_client.servstat == 0) {
         if (strncasecmp("* OK ", g_line, 5) != 0) {
             char *msg = "NO Login failed, Service unavailable\r\n";
 
             xyz_buf_sprintf(g_client.bufout, "%s %s", g_client.tag, msg);
-            xyz_buf_write(g_client.bufout, STDOUT_FILENO);
+            smart_cliwrite(g_client.bufout, STDOUT_FILENO);
             xyz_event_stop(g_event);
 
             LOGE("server connect respone error");
@@ -722,7 +753,7 @@ int server_read(int fd, void *arg)
         return 0;
     }
 
-    // case 2
+    // case 2 login ok.
     if (g_client.servstat == 1) {
         char tmphead[1024];
 
@@ -733,7 +764,7 @@ int server_read(int fd, void *arg)
             char *msg = "NO Login failed, Service unavailable\r\n";
 
             xyz_buf_sprintf(g_client.bufout, "%s %s", g_client.tag, msg);
-            xyz_buf_write(g_client.bufout, STDOUT_FILENO);
+            smart_cliwrite(g_client.bufout, STDOUT_FILENO);
             xyz_event_stop(g_event);
 
             LOGE("server login respone error");
@@ -743,10 +774,10 @@ int server_read(int fd, void *arg)
         g_client.servstat = 2;
 
         xyz_buf_sprintf(g_client.bufout, "%s\r\n", g_line);
-        xyz_buf_write(g_client.bufout, STDOUT_FILENO);
+        smart_cliwrite(g_client.bufout, STDOUT_FILENO);
 
-        /// when login server sucessed, use server_trand() read server data
-        /// and used client_trans() read client date
+        /// 收到服务器端LOGIN成功信息后, 通过server_trans读取服务器端数据.
+        /// 通过client_trans读取客户端数据, 对数据只做传输,不再解析.
         xyz_event_add(g_event, g_client.servfd, EVTYPE_RD, server_trans, NULL);
         xyz_event_add(g_event, STDIN_FILENO, EVTYPE_RD, client_trans, NULL);
 
@@ -756,7 +787,7 @@ int server_read(int fd, void *arg)
     return 0;
 }
 
-// write to server used bufin.
+/// 将bufin中的数据写到服务器端.
 int server_write(int fd, void *arg)
 {
     int n;
@@ -781,7 +812,8 @@ int server_write(int fd, void *arg)
     return n;
 }
 
-// read from server used bufout.
+/// 读取服务器端数据,放到bufout中.
+/// 并调用client_write输出到客户端.
 int server_trans(int fd, void *arg)
 {
     int n;
@@ -844,6 +876,24 @@ void init(void)
     return;
 }
 
+int smart_cliread(struct xyz_buf_t *buf, int fd) 
+{
+    if(g_setting.usessl && g_client.ossl) {
+        return xyz_buf_sslread(buf, g_client.ossl);
+    } else {
+        return xyz_buf_read(buf, fd);
+    }
+}
+
+int smart_cliwrite(struct xyz_buf_t *buf, int fd)
+{
+    if(g_setting.usessl && g_client.ossl) {
+        return xyz_buf_sslwrite(buf, g_client.ossl);
+    } else {
+        return xyz_buf_write(buf, fd);
+    }
+}
+
 int main(int argc, char *argv[])
 {
     xyz_log_open("imapproxy" , LOG_MAIL, LOG_DEBUG);
@@ -854,18 +904,30 @@ int main(int argc, char *argv[])
     setting_init();
     if (setting_load() == -1) {
         LOGE("config file set error");
-        return 0;
+        return 1;
     }
 
-    //xyz_log_close();
     xyz_log_open("imapproxy" , LOG_MAIL, g_setting.loglevel);
 
+    if(g_setting.usessl) {
+        g_client.ossl = xyz_ssl_create(XYZ_SSLv23, g_setting.pemfile);
+        if(g_client.ossl == NULL) {
+            LOGE("config file set error");
+            return 2;
+        }
+    }
+
     client_init();
+    
+    int n = xyz_sock_peeraddr(STDOUT_FILENO, g_client.cliaddr, sizeof(g_client.cliaddr)-1);
+    if(n == 0) {
+        LOGI("client ip : %s", g_client.cliaddr);
+    }
 
     g_event = xyz_event_create();
     if (g_event == NULL) {
         LOGE("create event error");
-        return 0;
+        return 3;
     }
 
     xyz_event_call(g_event, client_check);
