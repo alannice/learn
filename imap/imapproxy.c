@@ -12,6 +12,7 @@
 #include <time.h>
 #include <strings.h>
 #include <unistd.h>
+#include <signal.h>
 
 #include <xyz_event.h>
 #include <xyz_sock.h>
@@ -894,27 +895,44 @@ int smart_cliwrite(struct xyz_buf_t *buf, int fd)
     }
 }
 
+void sig_alarm(int sig)
+{
+    LOGE("SSL accept error, exit.");
+    exit(0);
+}
+
 int main(int argc, char *argv[])
 {
     xyz_log_open("imapproxy" , LOG_MAIL, LOG_DEBUG);
-    LOGI("program start");
+    LOGI("program start.");
 
     setopt(argc, argv);
 
     setting_init();
     if (setting_load() == -1) {
-        LOGE("config file set error");
+        LOGE("config file set error, exit.");
         return 1;
     }
 
     xyz_log_open("imapproxy" , LOG_MAIL, g_setting.loglevel);
 
+    signal(SIGPIPE, SIG_IGN);
+
     if(g_setting.usessl) {
         g_client.ossl = xyz_ssl_create(XYZ_SSLv23, g_setting.pemfile);
         if(g_client.ossl == NULL) {
-            LOGE("config file set error");
+            LOGE("SSL init error, exit.");
             return 2;
         }
+        signal(SIGALRM, sig_alarm); 
+        alarm(3);
+        int n = xyz_ssl_accept(g_client.ossl, STDIN_FILENO, STDOUT_FILENO);
+        if(n == -1) {
+            xyz_ssl_destroy(g_client.ossl);
+            LOGE("SSL accept error, exit.");
+            return 3;
+        }
+        alarm(0);
     }
 
     client_init();
@@ -926,8 +944,9 @@ int main(int argc, char *argv[])
 
     g_event = xyz_event_create();
     if (g_event == NULL) {
-        LOGE("create event error");
-        return 3;
+        LOGE("create event error, exit.");
+        xyz_ssl_destroy(g_client.ossl);
+        return 4;
     }
 
     xyz_event_call(g_event, client_check);
@@ -935,6 +954,7 @@ int main(int argc, char *argv[])
     xyz_event_loop(g_event);
     xyz_event_destroy(g_event);
 
+    xyz_ssl_destroy(g_client.ossl);
     client_destroy();
 
     LOGE("program exit, run %d second", time(NULL)-g_starttime);
