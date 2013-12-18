@@ -12,11 +12,13 @@ struct xyz_ssl_t {
     SSL_CTX *ctx;    
     SSL *ssl;
     int method;
+    int rdfd;
+    int wtfd;
     int sockfd;
 };
 
 struct xyz_ssl_t *xyz_ssl_create(int method, char *pemfile); 
-int xyz_ssl_accept(struct xyz_ssl_t *ssl, int sockfd);  
+int xyz_ssl_accept(struct xyz_ssl_t *ssl, int rfd, int wfd);  
 int xyz_ssl_connect(struct xyz_ssl_t *ssl, int sockfd);  
 void xyz_ssl_destroy(struct xyz_ssl_t *ssl);  
 

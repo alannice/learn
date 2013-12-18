@@ -11,6 +11,7 @@ struct xyz_ssl_t *xyz_ssl_create(int method, char *pemfile)
     if(ossl == NULL) {
         return NULL;
     }
+    bzero(ossl, sizeof(struct xyz_ssl_t));
 
     ossl->method = method;
 
@@ -58,9 +59,9 @@ struct xyz_ssl_t *xyz_ssl_create(int method, char *pemfile)
     return ossl;
 }
 
-int xyz_ssl_accept(struct xyz_ssl_t *ossl, int sockfd)
+int xyz_ssl_accept(struct xyz_ssl_t *ossl, int rfd, int wfd)
 {
-    if(ossl == NULL || sockfd < 0) {
+    if(ossl == NULL || rfd < 0 || wfd < 0) {
         return -1;
     }
 
@@ -69,9 +70,11 @@ int xyz_ssl_accept(struct xyz_ssl_t *ossl, int sockfd)
         return -1;
     }
 
-    ossl->sockfd = sockfd;
+    ossl->rdfd = rfd;
+    ossl->wtfd = wfd;
 
-    SSL_set_fd(ossl->ssl, sockfd);
+    SSL_set_rfd(ossl->ssl, rfd);
+    SSL_set_wfd(ossl->ssl, wfd);
     if (SSL_accept(ossl->ssl) == -1) {
         return -1;
     }
