@@ -5,7 +5,7 @@
 
 #include "xyz_mpool.h"
 
-#define BLOCK_DEEP 32
+#define XYZ_BLOCK_DEEP 32
 
 struct xyz_mpool_t {
 	char label[32];
@@ -74,7 +74,7 @@ int xyz_mpool_grow(struct xyz_mpool_t *mp)
 		return -1;
 	}
 
-	char *b = malloc(sizeof(char *) + mp->data_size * BLOCK_DEEP);
+	char *b = malloc(sizeof(char *) + mp->data_size * XYZ_BLOCK_DEEP);
 	if(b == NULL) {
 		return -1;
 	}
@@ -82,12 +82,12 @@ int xyz_mpool_grow(struct xyz_mpool_t *mp)
 	//printf("alloc block %p\n", b);
 
 	char *p = b + sizeof(char *);
-	for(i=0; i<BLOCK_DEEP; i++) {
+	for(i=0; i<XYZ_BLOCK_DEEP; i++) {
 		*(char **)p = mp->free_list;
 		mp->free_list = p;
 		p += mp->data_size;
 	}
-	mp->free_count += BLOCK_DEEP;
+	mp->free_count += XYZ_BLOCK_DEEP;
 
 	*(void **)b = mp->block_list;
 	mp->block_list = b;
@@ -142,7 +142,7 @@ void xyz_mpool_stat(struct xyz_mpool_t *mp, int v)
 	printf("*** %s ***\n", mp->label);
 	printf("data_size:%d\n", mp->data_size);
 	printf("free_count:%d\n", mp->free_count);
-	printf("block_size:%d\n", mp->data_size*BLOCK_DEEP+sizeof(char *));
+	printf("block_size:%d\n", mp->data_size*XYZ_BLOCK_DEEP+sizeof(char *));
 	printf("block_count:%d\n", mp->block_count);
 
 	if(v) {

@@ -4,17 +4,11 @@
 #include <string.h>
 #include <errno.h>
 #include <unistd.h>
-
 #include <sys/select.h>
 
 #include "xyz_event.h"
 
-//typedef int (*ev_func)(int fd, void *arg);
-//
-//#define EVTYPE_RD 1
-//#define EVTYPE_WT 2
-
-#define FDARRAY_MAX 8
+#define XYZ_FDARRAY_MAX 8
 
 struct xyz_event_node_t
 {
@@ -35,7 +29,7 @@ struct xyz_event_t
 	fd_set rdset;
 	fd_set wtset;
 
-	struct xyz_event_node_t array[FDARRAY_MAX];
+	struct xyz_event_node_t array[XYZ_FDARRAY_MAX];
 	xyz_ev_call call;
 };
 
@@ -54,7 +48,7 @@ struct xyz_event_t *xyz_event_create()
 	FD_ZERO(&(ev->rdset));
 	FD_ZERO(&(ev->wtset));
 
-	for(i=0; i<FDARRAY_MAX; i++) {
+	for(i=0; i<XYZ_FDARRAY_MAX; i++) {
 		ev->array[i].fd = -1;
 		ev->array[i].rdtype = 0;
 		ev->array[i].wttype = 0;
@@ -79,12 +73,12 @@ int xyz_event_add(struct xyz_event_t *ev, int fd, int type, xyz_ev_func func, vo
 		return -1;
 	}
 
-	for(i=0; i<FDARRAY_MAX; i++) {
+	for(i=0; i<XYZ_FDARRAY_MAX; i++) {
 		if(ev->array[i].fd == fd) {
-			if(type == EVTYPE_RD) {
+			if(type == XYZ_EVTYPE_RD) {
 				ev->array[i].rdtype = 1;
 				ev->array[i].rdfunc = func;
-			} else if(type == EVTYPE_WT) {
+			} else if(type == XYZ_EVTYPE_WT) {
 				ev->array[i].wttype = 1;
 				ev->array[i].wtfunc = func;
 			} else {
@@ -97,12 +91,12 @@ int xyz_event_add(struct xyz_event_t *ev, int fd, int type, xyz_ev_func func, vo
 		}
 	}
 
-	for(i=0; i<FDARRAY_MAX; i++) {
+	for(i=0; i<XYZ_FDARRAY_MAX; i++) {
 		if(ev->array[i].fd < 0) {
-			if(type == EVTYPE_RD) {
+			if(type == XYZ_EVTYPE_RD) {
 				ev->array[i].rdtype = 1;
 				ev->array[i].rdfunc = func;
-			} else if(type == EVTYPE_WT) {
+			} else if(type == XYZ_EVTYPE_WT) {
 				ev->array[i].wttype = 1;
 				ev->array[i].wtfunc = func;
 			} else {
@@ -122,11 +116,11 @@ int xyz_event_del(struct xyz_event_t *ev, int fd, int type)
 {
 	int i;
 
-	for(i=0; i<FDARRAY_MAX; i++) {
+	for(i=0; i<XYZ_FDARRAY_MAX; i++) {
 		if(ev->array[i].fd == fd) {
-			if(type == EVTYPE_RD) {
+			if(type == XYZ_EVTYPE_RD) {
 				ev->array[i].rdtype = 0;
-			} else if(type == EVTYPE_WT) {
+			} else if(type == XYZ_EVTYPE_WT) {
 				ev->array[i].wttype = 0;
 			} else {
 				return -1;
@@ -153,7 +147,7 @@ int xyz_event_run(struct xyz_event_t *ev)
 	// fill rdset/wtset
 	FD_ZERO(&(ev->rdset));
 	FD_ZERO(&(ev->wtset));
-	for(i=0; i<FDARRAY_MAX; i++) {
+	for(i=0; i<XYZ_FDARRAY_MAX; i++) {
 		if(ev->array[i].fd < 0) {
 			continue;
 		}
@@ -180,7 +174,7 @@ int xyz_event_run(struct xyz_event_t *ev)
 	}
 
 	// read/write
-	for(i=0; i<FDARRAY_MAX; i++) {
+	for(i=0; i<XYZ_FDARRAY_MAX; i++) {
 		if(ev->array[i].fd < 0) {
 			continue;
 		}
@@ -245,7 +239,7 @@ void xyz_event_stat(struct xyz_event_t *ev)
 
 	printf("------ event stat ------\n");
 
-	for(i=0; i<FDARRAY_MAX; i++) {
+	for(i=0; i<XYZ_FDARRAY_MAX; i++) {
 		if(ev->array[i].fd < 0) {
 			continue;
 		}
@@ -284,7 +278,7 @@ int main(void)
 	struct xyz_event_t *ev;
 	ev = xyz_event_create();
 	printf("echo server, input \"quit\" to exit\n");
-	xyz_event_add(ev, 0, EVTYPE_RD, xyz_event_test, ev);
+	xyz_event_add(ev, 0, XYZ_EVTYPE_RD, xyz_event_test, ev);
 	xyz_event_loop(ev);
 	return 0;
 }

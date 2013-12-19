@@ -15,7 +15,7 @@
 
 #include "xyz_sock.h"
 
-#define LISTEN_MAX 128
+#define XYZ_LISTEN_MAX 128
 
 int xyz_sock_noblock(int sockfd)
 {
@@ -70,7 +70,7 @@ int xyz_sock_listen(char *addr, int port)
 		perror ("bind() error");
 		return -1;
     }
-    if (listen (sockfd, LISTEN_MAX) == -1)
+    if (listen (sockfd, XYZ_LISTEN_MAX) == -1)
     {
 		perror ("listen() error");
 		return -1;

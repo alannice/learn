@@ -5,8 +5,8 @@
 typedef int (*xyz_ev_func)(int fd, void *arg);
 typedef int (*xyz_ev_call)(void);
 
-#define EVTYPE_RD 1
-#define EVTYPE_WT 2
+#define XYZ_EVTYPE_RD 1
+#define XYZ_EVTYPE_WT 2
 
 struct xyz_event_t;
 
