@@ -643,7 +643,7 @@ int client_write(int fd, void *arg)
 	}
 
 	if (xyz_buf_length(g_client.bufout) == 0) {
-		xyz_event_del(g_event, fd, EVTYPE_WT);
+		xyz_event_del(g_event, fd, XYZ_EVTYPE_WT);
 	}
 
 	return n;
@@ -667,7 +667,7 @@ int client_trans(int fd, void *arg)
 	LOGD("read from client : %s.", xyz_buf_data(g_client.bufin));
 
 	if (xyz_buf_length(g_client.bufin) > 0) {
-		xyz_event_add(g_event, g_client.servfd, EVTYPE_WT, server_write, NULL);
+		xyz_event_add(g_event, g_client.servfd, XYZ_EVTYPE_WT, server_write, NULL);
 	}
 
 	return n;
@@ -693,12 +693,12 @@ int server_connect()
 	}
 
 	/// 连接到服务器后,就不再使用client_read读取客户端数据.
-	xyz_event_del(g_event, STDIN_FILENO, EVTYPE_RD);
+	xyz_event_del(g_event, STDIN_FILENO, XYZ_EVTYPE_RD);
 
 	g_client.servstat = 0;
 
 	xyz_sock_noblock(g_client.servfd);
-	xyz_event_add(g_event, g_client.servfd, EVTYPE_RD, server_read, NULL);
+	xyz_event_add(g_event, g_client.servfd, XYZ_EVTYPE_RD, server_read, NULL);
 
 	return 0;
 }
@@ -784,8 +784,8 @@ int server_read(int fd, void *arg)
 
 		/// 收到服务器端LOGIN成功信息后, 通过server_trans读取服务器端数据.
 		/// 通过client_trans读取客户端数据, 对数据只做传输,不再解析.
-		xyz_event_add(g_event, g_client.servfd, EVTYPE_RD, server_trans, NULL);
-		xyz_event_add(g_event, STDIN_FILENO, EVTYPE_RD, client_trans, NULL);
+		xyz_event_add(g_event, g_client.servfd, XYZ_EVTYPE_RD, server_trans, NULL);
+		xyz_event_add(g_event, STDIN_FILENO, XYZ_EVTYPE_RD, client_trans, NULL);
 
 		return 0;
 	}
@@ -812,7 +812,7 @@ int server_write(int fd, void *arg)
 	}
 
 	if (xyz_buf_length(g_client.bufin) == 0) {
-		xyz_event_del(g_event, fd, EVTYPE_WT);
+		xyz_event_del(g_event, fd, XYZ_EVTYPE_WT);
 	}
 
 	return n;
@@ -834,7 +834,7 @@ int server_trans(int fd, void *arg)
 	// LOGD("read from server : %s", xyz_buf_data(g_client.bufout));
 
 	if (xyz_buf_length(g_client.bufout) > 0) {
-		xyz_event_add(g_event, STDOUT_FILENO, EVTYPE_WT, client_write, NULL);
+		xyz_event_add(g_event, STDOUT_FILENO, XYZ_EVTYPE_WT, client_write, NULL);
 	}
 
 	return n;
@@ -848,6 +848,7 @@ void usage()
 {
 	printf("Usage:\n");
 	printf("\t-f <file> : config file\n");
+    printf("compile %s %s\n", __DATE__, __TIME__);
 
 	return;
 }
@@ -944,7 +945,6 @@ int main(int argc, char *argv[])
 		LOGI("ssl accept sucessed.");
 	}
 
-
 	int n = xyz_sock_peeraddr(STDIN_FILENO, g_client.cliaddr, sizeof(g_client.cliaddr)-1);
 	if(n == 0) {
 		LOGI("client ip : %s.", g_client.cliaddr);
@@ -960,7 +960,7 @@ int main(int argc, char *argv[])
 	}
 
 	xyz_event_call(g_event, client_check);
-	xyz_event_add(g_event, STDIN_FILENO, EVTYPE_RD, client_read, NULL);
+	xyz_event_add(g_event, STDIN_FILENO, XYZ_EVTYPE_RD, client_read, NULL);
 	xyz_event_loop(g_event);
 	xyz_event_destroy(g_event);
 
