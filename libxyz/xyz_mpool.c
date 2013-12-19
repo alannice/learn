@@ -7,17 +7,6 @@
 
 #define XYZ_BLOCK_DEEP 32
 
-struct xyz_mpool_t {
-	char label[32];
-	int data_size;
-
-	char *free_list;
-	int free_count;
-
-	char *block_list;
-	int block_count;
-};
-
 struct xyz_mpool_t *xyz_mpool_create(char *label, int size)
 {
 	if(size <= 2) {

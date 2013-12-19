@@ -2,7 +2,16 @@
 #ifndef __XYZ_MPOOL_H__
 #define __XYZ_MPOOL_H__
 
-struct xyz_mpool_t;
+struct xyz_mpool_t {                                                                                             
+    char label[32];                                                                                              
+    int data_size;                                                                                               
+
+    char *free_list;                                                                                             
+    int free_count;                                                                                              
+
+    char *block_list;                                                                                            
+    int block_count;                                                                                             
+};     
 
 struct xyz_mpool_t *xyz_mpool_create(char *label, int size);
 void xyz_mpool_destroy(struct xyz_mpool_t *mp);

@@ -8,7 +8,30 @@ typedef int (*xyz_ev_call)(void);
 #define XYZ_EVTYPE_RD 1
 #define XYZ_EVTYPE_WT 2
 
-struct xyz_event_t;
+#define XYZ_FDARRAY_MAX 8 
+
+struct xyz_event_node_t                                                                                          
+{                                                                                                                
+    int fd;                                                                                                      
+    int rdtype;                                                                                                  
+    xyz_ev_func rdfunc;                                                                                          
+    int wttype;                                                                                                  
+    xyz_ev_func wtfunc;                                                                                          
+    void *arg;                                                                                                   
+};                                                                                                               
+                                                                                                                 
+struct xyz_event_t                                                                                               
+{                                                                                                                
+    int maxfd;                                                                                                   
+    int stop;                                                                                                    
+    int usec;                                                                                                    
+
+    fd_set rdset;                                                                                                
+    fd_set wtset;                                                                                                
+
+    struct xyz_event_node_t array[XYZ_FDARRAY_MAX];                                                              
+    xyz_ev_call call;                                                                                            
+};  
 
 struct xyz_event_t *xyz_event_create();
 int xyz_event_add(struct xyz_event_t *ev, int fd, int type, xyz_ev_func func, void *arg);

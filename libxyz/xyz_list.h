@@ -2,9 +2,21 @@
 #ifndef __XYZ_LIST_H__
 #define __XYZ_LIST_H__
 
-struct xyz_list_t;
-
 typedef int (*xyz_list_foreach_t)(void *data, void *arg);
+
+struct xyz_list_node_t                                                                                           
+{                                                                                                                
+    void *data;                                                                                                  
+    struct xyz_list_node_t *prev, *next;                                                                         
+};                                                                                                               
+                                                                                                                 
+struct xyz_list_t                                                                                                
+{                                                                                                                
+    char label[32];                                                                                              
+    struct xyz_mpool_t *mp;                                                                                      
+    int count;                                                                                                   
+    struct xyz_list_node_t *head, *tail;                                                                         
+}; 
 
 struct xyz_list_t *xyz_list_create(char *label);
 void xyz_list_clear(struct xyz_list_t *list);

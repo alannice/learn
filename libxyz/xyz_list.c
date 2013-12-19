@@ -6,20 +6,6 @@
 #include "xyz_mpool.h"
 #include "xyz_list.h"
 
-struct xyz_list_node_t
-{
-	void *data;
-	struct xyz_list_node_t *prev, *next;
-};
-
-struct xyz_list_t
-{
-	char label[32];
-	struct xyz_mpool_t *mp;
-	int count;
-	struct xyz_list_node_t *head, *tail;
-};
-
 struct xyz_list_t *xyz_list_create(char *label)
 {
 	struct xyz_list_t *l;
