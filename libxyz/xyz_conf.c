@@ -120,6 +120,10 @@ int xyz_conf_trim(char *line)
 
 struct xyz_conf_t *xyz_conf_append(struct xyz_conf_t *conf, char *key, char *value)
 {
+    if(conf == NULL) {
+        return NULL;
+    }
+
 	if(key == NULL || strlen(key) == 0 || value == NULL || strlen(value) == 0) {
 		return conf;
 	}
@@ -151,6 +155,10 @@ struct xyz_conf_t *xyz_conf_read(FILE *fp)
 	char line[512];
 	char *value;
 
+    if(fp == NULL) {
+        return NULL;
+    }
+
 	struct xyz_conf_t *conf = NULL;
 
 	while(! feof(fp)) {
@@ -176,6 +184,10 @@ struct xyz_conf_t *xyz_conf_load(char *file)
 {
 	FILE *fp;
 
+    if(file == NULL) {
+        return NULL;
+    }
+
 	fp = xyz_conf_open(file);
 	if(fp == NULL) {
 		return NULL;
@@ -187,6 +199,10 @@ struct xyz_conf_t *xyz_conf_load(char *file)
 void xyz_conf_destroy(struct xyz_conf_t *conf)
 {
 	struct xyz_conf_t *tmpconf;
+
+    if(conf == NULL) {
+        return;
+    }
 
 	while(conf) {
 		tmpconf = conf;
@@ -202,6 +218,10 @@ void xyz_conf_destroy(struct xyz_conf_t *conf)
 
 const char *xyz_conf_string(struct xyz_conf_t *conf, char *key)
 {
+    if(conf == NULL || key == NULL) {
+        return NULL;
+    }
+
 	while(conf) {
 		if(strcmp(conf->key, key) == 0) {
 			return conf->value;
@@ -214,6 +234,9 @@ const char *xyz_conf_string(struct xyz_conf_t *conf, char *key)
 
 int xyz_conf_number(struct xyz_conf_t *conf, char *key)
 {
+    if(conf == NULL || key == NULL) {
+        return -999;
+    }
 	while(conf) {
 		if(strcmp(conf->key, key) == 0) {
 			return atoi(conf->value);

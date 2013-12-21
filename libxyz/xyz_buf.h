@@ -29,8 +29,5 @@ void xyz_buf_stat(struct xyz_buf_t *buf);
 int xyz_buf_sslread(struct xyz_buf_t *buf, struct xyz_ssl_t *ossl); 
 int xyz_buf_sslwrite(struct xyz_buf_t *buf, struct xyz_ssl_t *ossl);
 
-int xyz_buf_getline(struct xyz_buf_t *buf, char *data, int len);
-int xyz_buf_getword(struct xyz_buf_t *buf, char *data, int len);
-
 #endif // __XYZ_BUF_H__
 

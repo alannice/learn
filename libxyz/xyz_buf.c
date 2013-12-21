@@ -113,6 +113,10 @@ int xyz_buf_read(struct xyz_buf_t *buf, int fd)
 {
 	int n;
 
+    if(buf == NULL || fd < 0) {
+        return -1;
+    }
+
 	if(buf->len == buf->size) {
 		return 0;
 	}
@@ -138,6 +142,10 @@ int xyz_buf_write(struct xyz_buf_t *buf, int fd)
 {
 	int i, n, m = 0;
 
+    if(buf == NULL || fd < 0) {
+        return -1;
+    }
+
 	for(i=0; i<6 && buf->len > m; i++) {
 		n = write(fd, buf->data+m, buf->len-m);
 		if(n < 0) {
@@ -161,6 +169,10 @@ int xyz_buf_write(struct xyz_buf_t *buf, int fd)
 
 int xyz_buf_drop(struct xyz_buf_t *buf, int len)
 {
+    if(buf == NULL || len == 0) {
+        return -1;
+    }
+
 	if(len > buf->len) {
 		return 0;
 	}
@@ -211,6 +223,10 @@ int xyz_buf_length(struct xyz_buf_t *buf)
 
 void xyz_buf_stat(struct xyz_buf_t *buf)
 {
+    if(buf == NULL) {
+        return;
+    }
+
 	printf("------ buf stat ------\n");
 	printf("*** %s ***\n", buf->label);
 	printf("size : %d\n", buf->size);
@@ -223,6 +239,10 @@ void xyz_buf_stat(struct xyz_buf_t *buf)
 int xyz_buf_sslread(struct xyz_buf_t *buf, struct xyz_ssl_t *ossl)
 {
 	int n;
+
+    if(buf == NULL || ossl == NULL) {
+        return -1;
+    }
 
 	if(buf->len == buf->size) {
 		return 0;
@@ -249,7 +269,11 @@ int xyz_buf_sslwrite(struct xyz_buf_t *buf, struct xyz_ssl_t *ossl)
 {
 	int i, n, m = 0;
 
-	for(i=0; i<6 && buf->len > m; i++) {
+    if(buf == NULL || ossl == NULL) {
+        return -1;
+    }
+
+	for(i=0; i<3 && buf->len > m; i++) {
 		n = SSL_write(ossl->ssl, buf->data+m, buf->len-m);
 		if(n < 0) {
 			if(errno == EAGAIN || errno == EINTR || errno == EWOULDBLOCK) {
@@ -268,71 +292,6 @@ int xyz_buf_sslwrite(struct xyz_buf_t *buf, struct xyz_ssl_t *ossl)
 	*(buf->data+buf->len) = '\0';
 
 	return m;
-}
-
-//-----------------------------------------------
-
-int xyz_buf_getline(struct xyz_buf_t *buf, char *data, int len)
-{
-	char *pos;
-
-	if(buf == NULL || data == NULL || len <= 0) {
-		return -1;
-	}
-
-	pos = strchr(buf->data, '\n');
-	if(pos == NULL) {
-		return 0;
-	}
-
-	if(pos - buf->data > len) {
-		return -2;
-	}
-
-	*pos = '\0';
-	if(*(pos-1) == '\r') {
-		*(pos-1) = '\0';
-	}
-
-	strncpy(data, buf->data, len);
-
-	buf->len -= ((pos+1)-buf->data);
-	memmove(buf->data, pos+1, buf->len);
-	*(buf->data+buf->len) = '\0';
-
-	return strlen(data);
-}
-
-int xyz_buf_getword(struct xyz_buf_t *buf, char *data, int len)
-{
-	int pos = 0;
-	int skip = 0;
-
-	if(buf == NULL || data == NULL || len <= 0) {
-		return -1;
-	}
-
-	for(pos=0; pos<=len; pos++) {
-		if(buf->data[pos] == '\r' || buf->data[pos] == '\n') {
-			break;
-		}
-		if(buf->data[pos] == ' ' || buf->data[pos] == '\t') {
-			skip++;
-			break;
-		}
-	}
-
-	if(pos > len) {
-		return -1;
-	}
-
-	strncpy(data, buf->data, pos);
-
-	buf->len -= (pos+skip);
-	memmove(buf->data, buf->data+pos+skip, buf->len);
-	*(buf->data+buf->len) = '\0';
-
-	return pos;
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -357,19 +316,6 @@ int main(void)
 
 	printf("add a string\n");
 	xyz_buf_add(buf, "aa\nbb\ncc\r\ndd\r\n", 14);
-	xyz_buf_stat(buf);
-
-	printf("get a line\n");
-	char arr[128];
-	bzero(arr, 100);
-	xyz_buf_getline(buf, arr, 120);
-	printf("line:%s\n", arr);
-	xyz_buf_stat(buf);
-
-	printf("get a world\n");
-	bzero(arr, 100);
-	xyz_buf_getword(buf, arr, 120);
-	printf("word:%s\n", arr);
 	xyz_buf_stat(buf);
 
 	printf("buf write\n");

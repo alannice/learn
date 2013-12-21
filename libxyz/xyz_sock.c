@@ -133,6 +133,10 @@ int xyz_sock_peeraddr(int sockfd, char *addr, int len)
     char *paddr;
     int pport;
 
+    if(addr == NULL || len < 15) {
+        return -1;
+    }
+
     sa_len = sizeof(struct sockaddr);
     bzero(&sa_in, sizeof(struct sockaddr_in));
     if(getpeername(sockfd, (struct sockaddr *)&sa_in, &sa_len ) < 0)

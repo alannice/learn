@@ -35,6 +35,10 @@ struct xyz_event_t *xyz_event_create()
 
 int xyz_event_call(struct xyz_event_t *ev, xyz_ev_call call)
 {
+    if(ev == NULL) {
+        return -1;
+    }
+
 	ev->call = call;
 
 	return 0;
@@ -44,9 +48,12 @@ int xyz_event_add(struct xyz_event_t *ev, int fd, int type, xyz_ev_func func, vo
 {
 	int i;
 
-	if(fd < 0 || func == NULL) {
+	if(ev == NULL || fd < 0 || func == NULL) {
 		return -1;
 	}
+    if(type != XYZ_EVTYPE_RD && type != XYZ_EVTYPE_WT) {
+        return -1;
+    }
 
 	for(i=0; i<XYZ_FDARRAY_MAX; i++) {
 		if(ev->array[i].fd == fd) {
@@ -91,6 +98,13 @@ int xyz_event_del(struct xyz_event_t *ev, int fd, int type)
 {
 	int i;
 
+    if(ev == NULL || fd < 0) {
+        return -1;
+    }
+    if(type != XYZ_EVTYPE_RD && type != XYZ_EVTYPE_WT) {
+        return -1;
+    }
+
 	for(i=0; i<XYZ_FDARRAY_MAX; i++) {
 		if(ev->array[i].fd == fd) {
 			if(type == XYZ_EVTYPE_RD) {
@@ -115,6 +129,10 @@ int xyz_event_run(struct xyz_event_t *ev)
 	int num, i;
 	struct xyz_event_node_t *en;
 	struct timeval tv;
+
+    if(ev == NULL) {
+        return -1;
+    }
 
 	tv.tv_sec = 0;
 	tv.tv_usec = ev->usec;
@@ -170,7 +188,9 @@ int xyz_event_run(struct xyz_event_t *ev)
 
 void xyz_event_stop(struct xyz_event_t *ev)
 {
-	ev->stop = 1;
+    if(ev) {
+        ev->stop = 1;
+    }
 
 	return;
 }
@@ -186,16 +206,11 @@ void xyz_event_destroy(struct xyz_event_t *ev)
 
 void xyz_event_loop(struct xyz_event_t *ev)
 {
-	ev->stop = 0;
-/*
-	while(! ev->stop) {
-		event_run();
+    if(ev == NULL) {
+        return;
+    }
 
-		if(ev->call) {
-			ev->call();
-		}
-	}
-*/
+	ev->stop = 0;
 	do {
 		xyz_event_run(ev);
 
@@ -211,6 +226,10 @@ void xyz_event_stat(struct xyz_event_t *ev)
 {
 	int i;
 	struct xyz_event_node_t *en;
+
+    if(ev == NULL) {
+        return;
+    }
 
 	printf("------ event stat ------\n");
 
