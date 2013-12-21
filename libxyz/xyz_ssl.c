@@ -3,7 +3,7 @@
 
 struct xyz_ssl_t *xyz_ssl_create(int method, char *pemfile)
 {
-    if((method != XYZ_SSLv23 && method != XYZ_TLSv1) &&  pemfile == NULL) {
+    if(method != XYZ_SSLv23 && method != XYZ_TLSv1) {
         return NULL;
     }
 
@@ -35,25 +35,27 @@ struct xyz_ssl_t *xyz_ssl_create(int method, char *pemfile)
         return NULL;
     }
 
-    if(SSL_CTX_use_certificate_file(ossl->ctx, pemfile, SSL_FILETYPE_PEM) <= 0) {
-        ERR_print_errors_fp(stdout);
-        SSL_CTX_free(ossl->ctx);
-        free(ossl);
-        return NULL;
-    }
+    if(pemfile) {
+        if(SSL_CTX_use_certificate_file(ossl->ctx, pemfile, SSL_FILETYPE_PEM) <= 0) {
+            ERR_print_errors_fp(stdout);
+            SSL_CTX_free(ossl->ctx);
+            free(ossl);
+            return NULL;
+        }
 
-    if(SSL_CTX_use_PrivateKey_file(ossl->ctx, pemfile, SSL_FILETYPE_PEM) <= 0) {
-        ERR_print_errors_fp(stdout);
-        SSL_CTX_free(ossl->ctx);
-        free(ossl);
-        return NULL;
-    }
+        if(SSL_CTX_use_PrivateKey_file(ossl->ctx, pemfile, SSL_FILETYPE_PEM) <= 0) {
+            ERR_print_errors_fp(stdout);
+            SSL_CTX_free(ossl->ctx);
+            free(ossl);
+            return NULL;
+        }
 
-    if (!SSL_CTX_check_private_key(ossl->ctx)) {
-        ERR_print_errors_fp(stdout);
-        SSL_CTX_free(ossl->ctx);
-        free(ossl);
-        return NULL;
+        if (!SSL_CTX_check_private_key(ossl->ctx)) {
+            ERR_print_errors_fp(stdout);
+            SSL_CTX_free(ossl->ctx);
+            free(ossl);
+            return NULL;
+        }
     }
     
     return ossl;
@@ -76,6 +78,10 @@ int xyz_ssl_accept(struct xyz_ssl_t *ossl, int rfd, int wfd)
     SSL_set_rfd(ossl->ssl, rfd);
     SSL_set_wfd(ossl->ssl, wfd);
     if (SSL_accept(ossl->ssl) == -1) {
+        SSL_shutdown(ossl->ssl);
+        SSL_free(ossl->ssl);
+        ossl->ssl = NULL;
+        
         return -1;
     }
 
@@ -95,6 +101,10 @@ int xyz_ssl_connect(struct xyz_ssl_t *ossl, int sockfd)
 
     SSL_set_fd(ossl->ssl, sockfd);
     if (SSL_connect(ossl->ssl) == -1) {
+        SSL_shutdown(ossl->ssl);
+        SSL_free(ossl->ssl);
+        ossl->ssl = NULL;
+
         return -1;
     }
 
