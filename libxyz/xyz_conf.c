@@ -120,10 +120,6 @@ int xyz_conf_trim(char *line)
 
 struct xyz_conf_t *xyz_conf_append(struct xyz_conf_t *conf, char *key, char *value)
 {
-    if(conf == NULL) {
-        return NULL;
-    }
-
 	if(key == NULL || strlen(key) == 0 || value == NULL || strlen(value) == 0) {
 		return conf;
 	}
@@ -279,5 +275,5 @@ int main(int argc, char *argv[])
 
 	return 0;
 }
-#endif 
+#endif
 
