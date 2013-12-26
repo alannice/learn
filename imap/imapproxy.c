@@ -332,7 +332,7 @@ int cmd_logout(void)
 	char *msg1 = "* BYE IMAP4rev1 Proxy logging out\r\n";
 	char *msg2 = "OK LOGOUT completed\r\n";
 
-	xyz_buf_add(g_client.bufout, msg1, strlen(msg1));
+	xyz_buf_append(g_client.bufout, msg1, strlen(msg1));
 	xyz_buf_sprintf(g_client.bufout, "%s %s", g_client.tag, msg2);
 	smart_cliwrite(g_client.bufout, STDOUT_FILENO);
 	xyz_event_stop(g_event);
@@ -354,7 +354,7 @@ int cmd_capa(void)
 	char *msg1 = "* CAPABILITY IMAP4rev1 ID UIDPLUS\r\n";
 	char *msg2 = "OK CAPABILITY completed\r\n";
 
-	xyz_buf_add(g_client.bufout, msg1, strlen(msg1));
+	xyz_buf_append(g_client.bufout, msg1, strlen(msg1));
 	xyz_buf_sprintf(g_client.bufout, "%s %s", g_client.tag, msg2);
 	smart_cliwrite(g_client.bufout, STDOUT_FILENO);
 
@@ -408,7 +408,7 @@ int cmd_id(void)
 		char *msg1 = "* ID (\"name\" \"sina imap server\" \"vendor\" \"sina\")\r\n";
 		char *msg2 = "OK ID Completed\r\n";
 
-		xyz_buf_add(g_client.bufout, msg1, strlen(msg1));
+		xyz_buf_append(g_client.bufout, msg1, strlen(msg1));
 		xyz_buf_sprintf(g_client.bufout, "%s %s", g_client.tag, msg2);
 		smart_cliwrite(g_client.bufout, STDOUT_FILENO);
 	} else {
@@ -454,7 +454,7 @@ int client_init(void)
 void client_echoready(void)
 {
 	char *msg = "* OK IMAPrev1 Proxy ready\r\n";
-	xyz_buf_add(g_client.bufout, msg, strlen(msg));
+	xyz_buf_append(g_client.bufout, msg, strlen(msg));
 	smart_cliwrite(g_client.bufout, STDOUT_FILENO);
 
 	return;
@@ -513,19 +513,25 @@ int client_read(int fd, void *arg)
 	g_client.lastcmd = time(NULL);
 
 	bzero(g_line, sizeof(g_line));
-	n = xyz_buf_getline(g_client.bufin, g_line, LINE_MAX);
-	if (n == 0) {
+    char *p = strchr(xyz_buf_data(g_client.bufin), '\n');
+	if (p == NULL) {
 		LOGD("not full line get.");
 		return 0;
-	} else if (n == -2) {
+    }
+    n = p-xyz_buf_data(g_client.bufin)+1;
+    if(n > LINE_MAX) {
 		LOGD("line too lang drop it.");
 		int len = strchr(xyz_buf_data(g_client.bufin), '\n') - xyz_buf_data(g_client.bufin);
 		xyz_buf_drop(g_client.bufin, len+1);
 		return 0;
-	} else if (n == -1) {
-		LOGD("buf inter error.");
-		return 0;
-	}
+	} 
+    xyz_buf_get(g_client.bufin, g_line, n); 
+    if(g_line[strlen(g_line)-1] == '\n') {
+        g_line[strlen(g_line)-1] = '\0';
+    }
+    if(g_line[strlen(g_line)-1] == '\r') {
+        g_line[strlen(g_line)-1] = '\0';
+    }
 
 	bzero(g_client.cmd, sizeof(g_client.cmd));
 	bzero(g_client.tag, sizeof(g_client.tag));
@@ -723,19 +729,25 @@ int server_read(int fd, void *arg)
 	}
 
 	bzero(g_line, sizeof(g_line));
-	n = xyz_buf_getline(g_client.bufout, g_line, LINE_MAX);
-	if (n == 0) {
+    char *p = strchr(xyz_buf_data(g_client.bufout), '\n');
+	if (p == NULL) {
 		LOGD("not full line get.");
 		return 0;
-	} else if (n == -2) {
+	} 
+    n = p - xyz_buf_data(g_client.bufout)+1;
+    if (n > LINE_MAX) {
 		LOGD("line too lang drop it.");
 		int len = strchr(xyz_buf_data(g_client.bufout), '\n') - xyz_buf_data(g_client.bufout);
 		xyz_buf_drop(g_client.bufout, len+1);
 		return 0;
-	} else if (n == -1) {
-		LOGD("buf inter error.");
-		return 0;
-	}
+	} 
+    xyz_buf_get(g_client.bufout, g_line, n);
+    if(g_line[strlen(g_line)+1] == '\n') {
+        g_line[strlen(g_line)+1] = '\0';
+    }
+    if(g_line[strlen(g_line)+1] == '\r') {
+        g_line[strlen(g_line)+1] = '\0';
+    }
 
 	// case 1 server ready.
 	if (g_client.servstat == 0) {
