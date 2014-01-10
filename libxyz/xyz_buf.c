@@ -91,7 +91,7 @@ int xyz_buf_get(struct xyz_buf_t *buf, char *data, int len)
 
     buf->len -= l;
     if (buf->len) {
-        memmove(buf->data+l, buf->data, buf->len);
+        memmove(buf->data, buf->data+l, buf->len);
     }
     *(buf->data+buf->len) = '\0';
 
@@ -158,7 +158,7 @@ int xyz_buf_write(struct xyz_buf_t *buf, int fd)
         return -1;
     }
 
-    memmove(buf->data+n, buf->data, buf->len-n);
+    memmove(buf->data, buf->data+n, buf->len-n);
     buf->len -= n;
     *(buf->data+buf->len) = '\0';
 
@@ -175,7 +175,7 @@ int xyz_buf_drop(struct xyz_buf_t *buf, int len)
         return 0;
     }
 
-    memmove(buf->data+len, buf->data, buf->len-len);
+    memmove(buf->data, buf->data+len, buf->len-len);
     buf->len -= len;
     *(buf->data+buf->len) = '\0';
 
@@ -287,7 +287,7 @@ int xyz_buf_sslwrite(struct xyz_buf_t *buf, struct xyz_ssl_t *ossl)
         m+=n;
     }
 
-    memmove(buf->data+m, buf->data, buf->len-m);
+    memmove(buf->data, buf->data+m, buf->len-m);
     buf->len -= m;
     *(buf->data+buf->len) = '\0';
 
