@@ -87,7 +87,7 @@ int xyz_buf_get(struct xyz_buf_t *buf, char *data, int len)
 
     int l = buf->len >= len ? len : buf->len;
 
-    memcpy(buf->data, data, l);
+    memcpy(data, buf->data, l);
 
     buf->len -= l;
     if (buf->len) {
@@ -106,7 +106,7 @@ int xyz_buf_peek(struct xyz_buf_t *buf, char *data, int len)
 
     int l = buf->len >= len ? len : buf->len;
 
-    memcpy(buf->data, data, l);
+    memcpy(data, buf->data, l);
 
     return l;
 }
