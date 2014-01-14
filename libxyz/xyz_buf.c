@@ -250,7 +250,7 @@ int xyz_buf_sslread(struct xyz_buf_t *buf, struct xyz_ssl_t *ossl)
 
     n = SSL_read(ossl->ssl, buf->data+buf->len, buf->size-buf->len);
     if (n < 0) {
-        if (errno == EAGAIN || errno == EINTR || errno == EWOULDBLOCK) {
+        if (errno == EINTR) {
             return 0;
         } else {
             return -1;
@@ -267,31 +267,27 @@ int xyz_buf_sslread(struct xyz_buf_t *buf, struct xyz_ssl_t *ossl)
 
 int xyz_buf_sslwrite(struct xyz_buf_t *buf, struct xyz_ssl_t *ossl)
 {
-    int i, n, m = 0;
+    int i, n;
 
     if (buf == NULL || ossl == NULL) {
         return -1;
     }
 
-    for (i=0; i<3 && buf->len > m; i++) {
-        n = SSL_write(ossl->ssl, buf->data+m, buf->len-m);
-        if (n < 0) {
-            if (errno == EAGAIN || errno == EINTR || errno == EWOULDBLOCK) {
-                break;
-            }
-            return -1;
-        } else if (n == 0) {
-            return -1;
+    n = SSL_write(ossl->ssl, buf->data, buf->len);
+    if (n < 0) {
+        if (errno == EINTR) {
+            return 0;
         }
-
-        m+=n;
+        return -1;
+    } else if (n == 0) {
+        return -1;
     }
 
-    memmove(buf->data, buf->data+m, buf->len-m);
-    buf->len -= m;
+    memmove(buf->data, buf->data+n, buf->len-n);
+    buf->len -= n;
     *(buf->data+buf->len) = '\0';
 
-    return m;
+    return n;
 }
 
 //////////////////////////////////////////////////////////////////////////////
