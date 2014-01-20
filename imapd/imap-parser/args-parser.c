@@ -1,9 +1,16 @@
 
 #include "args-parser.h"
 
-struct ImapParser_t *imap_parser_create(char *args)                            
+int imap_parser_arg(struct ImapParser_t *parser);
+int imap_parser_read_atom(struct ImapParser_t *parser);
+int imap_parser_read_string(struct ImapParser_t *parser);
+int imap_parser_read_list(struct ImapParser_t *parser);
+int imap_parser_read_literal(struct ImapParser_t *parser);
+int imap_parser_save_arg(struct ImapParser_t *parser, int type, char *data, int len);
+
+struct ImapParser_t *imap_parser_create(char *data)                            
 {
-    if(args == NULL) {
+    if(data == NULL) {
         return NULL;
     }
 
@@ -12,8 +19,8 @@ struct ImapParser_t *imap_parser_create(char *args)
         return NULL;
     }
 
-    parser->pos = parser->argstring;
-    strncpy(parser->argstring, args, sizeof(parser->argstring)-1);
+    parser->pos = parser->data;
+    strncpy(parser->data, data, sizeof(parser->data)-1);
 
     int retval = imap_parser_arg(parser);
     if(retval == -1) {
@@ -36,18 +43,15 @@ void imap_parser_destroy(struct ImapParser_t *parser)
 
 void imap_parser_reset(struct ImapParser_t *parser)                            
 {
-    /*
-    if(parser) {
-        if(parser->args) {
-            struct ImapArg_t *arg;
-            while(parser->args) {
-                arg=parser->args->next;
-                free(parser->args);
-                parser->args = arg;
-            }
-        }
+    if(parser && parser->args) {
+        struct ImapArg_t *arg;
+        while(parser->args) {
+            arg=parser->args->next;
+            free(parser->args);
+            parser->args = arg;
+        } 
     }
-*/
+
     return;
 }
 
@@ -127,7 +131,7 @@ int imap_parser_read_list(struct ImapParser_t *parser)
     int in_bracket = 0; 
     char *data = parser->pos;
 
-    while(*data++) {
+    for(; *data; data++) {
         if(*data == '(') { 
             in_bracket++;
             continue;
@@ -197,7 +201,7 @@ int imap_parser_save_arg(struct ImapParser_t *parser, int type, char *data, int 
     if(arg == NULL) {
         return -1;
     }
-    if(sizeof(arg->arg)-1 < len) return -1;
+    if(sizeof(arg->data)-1 < len) return -1;
 
     if(parser->args == NULL) {
         parser->args = arg;
@@ -209,9 +213,73 @@ int imap_parser_save_arg(struct ImapParser_t *parser, int type, char *data, int 
         tmparg->next = arg;
     }
     arg->type = type;
-    strncpy(arg->arg, data, len);
+    strncpy(arg->data, data, len);
 
-    return arg;
+    return 0;
 }
 
+char *imap_parser_get_arg(struct ImapParser_t *parser, int idx)
+{
+    int i;
+    struct ImapArg_t *args;
+
+    if(parser == NULL || parser->args == NULL) {
+        return NULL;
+    }
+
+    args = parser->args;
+    for(i=0; args; i++) {
+        if(i == (idx-1)) {
+            return args->data;
+        }
+
+        args = args->next;
+    }
+    
+    return NULL;
+}
+
+void imap_parser_state(struct ImapParser_t *parser)
+{
+
+    if(parser) {
+        printf("string:%s\n", parser->data);
+
+        struct ImapArg_t *arg = parser->args;
+        while(arg) {
+            printf("type: %d, string:%s\n", arg->type, arg->data);
+            arg=arg->next;
+        }
+    }
+
+    return;
+}
+
+////////////////////////////////////////////////
+
+#if 0
+
+int main(void)
+{
+    // UID FETCH 604,605,606,607,608,609,610,611,612,613 (UID FLAGS INTERNALDATE RFC822.SIZE BODY.PEEK[HEADER.FIELDS (date subject from content-type to cc message-id)])
+    char *data = "610,611,612,613 (UID FLAGS INTERNALDATE RFC822.SIZE BODY.PEEK[HEADER.FIELDS (date subject from content-type to cc message-id)])";
+
+    struct ImapParser_t *parser = imap_parser_create(data);     
+    if(parser == NULL) {
+        printf("imap_parser_create() error\n");
+        return;
+    }
+
+    imap_parser_state(parser);
+
+    printf("args 1 : %s\n", imap_parser_get_arg(parser, 1));
+
+    imap_parser_destroy(parser);
+
+    return;
+}
+
+#endif 
+
+// end
 
