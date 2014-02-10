@@ -8,13 +8,20 @@
 #include <unistd.h>
 
 #include "xyz_mpool.h"
-#include "xyz_list.h"
+
+#define XYZ_HASH_KEYLEN 32
+
+struct xyz_hash_list_t {
+    char key[XYZ_HASH_KEYLEN];
+    void *data;
+    struct xyz_hash_list_t *next;
+};
 
 struct xyz_hash_t {
 	struct xyz_mpool_t *mp;
 	int count;
 	int size;
-	struct xyz_list_t *list[];
+	struct xyz_hash_list_t **list;
 };
 
 struct xyz_hash_t *xyz_hash_create(int size);
