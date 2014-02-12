@@ -31,7 +31,7 @@ int xyz_sock_closeonexec(int sockfd)
 	return fcntl(sockfd, F_SETFD, FD_CLOEXEC); 
 }
 
-int xyz_sock_listen(char *addr, int port)
+int xyz_sock_listen(char *addr, int port, int type)
 {
 	struct sockaddr_in sin;
 	int sockfd;
@@ -46,7 +46,6 @@ int xyz_sock_listen(char *addr, int port)
 			perror ("gethostbyname() error");
 			return -1;
 		}
-		//sin.sin_addr = *((struct in_addr *)ht->h_addr);
 		sin.sin_addr.s_addr = *((in_addr_t *)(ht->h_addr));
 	} else {
 		sin.sin_addr.s_addr = INADDR_ANY;
@@ -55,9 +54,20 @@ int xyz_sock_listen(char *addr, int port)
     sin.sin_port = htons (port);
     sin.sin_family = AF_INET;
 
-    sockfd = socket (PF_INET, SOCK_STREAM, 0);
-    if (sockfd == -1)
-    {
+    switch(type) {
+        case XYZ_SOCKET_TCP:
+            sockfd = socket (PF_INET, SOCK_STREAM, IPPROTO_TCP);
+            break;
+        case XYZ_SOCKET_UDP:
+            sockfd = socket (PF_INET, SOCK_DGRAM, IPPROTO_UDP);
+            break;
+        case XYZ_SOCKET_SCTP:
+            sockfd = socket (PF_INET, SOCK_SEQPACKET, IPPROTO_SCTP);
+            break;
+        default:
+            return -1;
+    }
+    if(sockfd == -1) {
 		perror ("socket() error");
 		return -1;
     }
@@ -94,7 +104,7 @@ int xyz_sock_accept(int sockfd)
 	return conn;
 }
 
-int xyz_sock_connect(char *addr, int port)
+int xyz_sock_connect(char *addr, int port, int type)
 {
 	struct sockaddr_in sin;
 	int sockfd;
@@ -104,17 +114,31 @@ int xyz_sock_connect(char *addr, int port)
 		return -1;
 	}
 
+    switch(type) {
+        case XYZ_SOCKET_TCP:
+            sockfd = socket (PF_INET, SOCK_STREAM, IPPROTO_TCP);
+            break;
+        case XYZ_SOCKET_UDP:
+            sockfd = socket (PF_INET, SOCK_DGRAM, IPPROTO_UDP);
+            break;
+        case XYZ_SOCKET_SCTP:
+            sockfd = socket (PF_INET, SOCK_SEQPACKET, IPPROTO_SCTP);
+            break;
+        default:
+            return -1;
+    }
+    if(sockfd == -1) {
+		perror ("socket() error");
+		return -1;
+    }
+
 	ht = gethostbyname(addr);
 	if(ht == NULL) {
 		perror ("gethostbyname() error");
 		return -1;
 	}
-
-	sockfd = socket(AF_INET, SOCK_STREAM, 0);
-
 	memset (&sin, 0, sizeof (sin));
 	sin.sin_addr.s_addr = *((in_addr_t *)(ht->h_addr));
-	//sin.sin_addr = *((struct in_addr *)ht->h_addr);
     sin.sin_port = htons(port);
     sin.sin_family = AF_INET;
 
@@ -180,8 +204,8 @@ int main(int argc, char *argv[])
 {
 	int fd;
 	
-	//sock_listen(NULL, 12345);
-	fd = xyz_sock_connect("imap.sina.com", 143);
+	//sock_listen(NULL, 12345, XYZ_SOCKET_TCP);
+	fd = xyz_sock_connect("imap.sina.com", 143, XYZ_SOCKET_TCP);
 	printf("connect on %d\n", fd);
 
 	char ip[32];
