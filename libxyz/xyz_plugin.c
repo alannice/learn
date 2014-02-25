@@ -127,9 +127,17 @@ int xyz_plugin_proc(struct xyz_plugin_t *plugin, void *data, void *args)
     struct xyz_plugin_node_t *tmp = plugin->list;
     while(tmp) {
         retval = tmp->plugin_proc(data, args);
-        if(retval < 0 ) {
-            // xxxxxx;
+        switch(retval) {
+            case XYZ_PLUGIN_ERROR:
+            case XYZ_PLUGIN_BAD:
+                return -1;
+            case XYZ_PLUGIN_ONCE:
+            case XYZ_PLUGIN_FINISH:
+                return 0;
+            default:
+                break;
         }
+
         tmp = tmp->next;
     }
 

@@ -2,13 +2,14 @@
 #ifndef __ZYX_PLUGIN_H__
 #define __ZYX_PLUGIN_H__
 
-#define XYZ_PLUGIN_STAT_SUCES 0 
-#define XYZ_PLUGIN_STAT_INIT 1
-#define XYZ_PLUGIN_STAT_DESTROY 2
-#define XYZ_PLUGIN_STAT_ONCE 3
-#define XYZ_PLUGIN_STAT_SKIP 4
-#define XYZ_PLUGIN_STAT_ERROR 5
-#define XYZ_PLUGIN_STAT_COMPLT 6
+#define XYZ_PLUGIN_SUCES   0       // 成功
+#define XYZ_PLUGIN_INIT    (-1)    // 初始化阶段
+#define XYZ_PLUGIN_DESTROY (-2)    // 释放资源阶段
+#define XYZ_PLUGIN_ONCE    (-3)    // 只执行一次
+#define XYZ_PLUGIN_SKIP    (-4)    // 本次调用被跳过
+#define XYZ_PLUGIN_ERROR   (-5)    // 处理过程中出错
+#define XYZ_PLUGIN_BAD     (-6)    // 处理的数据有错误
+#define XYZ_PLUGIN_FINISH  (-7)    // 处理已结束
 
 #define XYZ_PLUGIN_PATH "./plugin"
 
