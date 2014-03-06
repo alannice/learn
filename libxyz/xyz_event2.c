@@ -25,7 +25,7 @@ struct xyz_event2_t {
     xyz_ev2_call call;
 };
 
-#ifdef __Linux__
+#ifdef __linux__
 
 #include <sys/epoll.h>
 
@@ -107,7 +107,7 @@ int __xyz_event2_run(struct xyz_event2_t *ev2)
     return 0;
 }
 
-#endif // __Linux__
+#endif // __linux__
 
 /////////////////////////////////////////////////////////////////////////////
 
