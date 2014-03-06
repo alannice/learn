@@ -8,7 +8,7 @@ typedef int (*xyz_ev_call)(void);
 #define XYZ_EVTYPE_RD 1
 #define XYZ_EVTYPE_WT 2
 
-#define XYZ_FDARRAY_MAX 8 
+#define XYZ_EVENT_FDMAX 8 
 
 struct xyz_event_node_t                                                                                          
 {                                                                                                                
@@ -29,7 +29,7 @@ struct xyz_event_t
     fd_set rdset;                                                                                                
     fd_set wtset;                                                                                                
 
-    struct xyz_event_node_t array[XYZ_FDARRAY_MAX];                                                              
+    struct xyz_event_node_t array[XYZ_EVENT_FDMAX];                                                              
     xyz_ev_call call;                                                                                            
 };  
 
