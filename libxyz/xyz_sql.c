@@ -55,6 +55,7 @@ struct xyz_mysql_t *xyz_mysql_connect(char *host, int port, char *user, char *pa
     }
 
     if (mysql_real_connect(mysql->mysql, host, user, passwd, database, port, NULL, 0) == NULL) {
+        fprintf(stderr,"my conn error :%s\n", mysql_error(mysql->mysql));
         mysql_close(mysql->mysql);
         free(mysql);
         return NULL;
@@ -81,15 +82,16 @@ void xyz_mysql_close(struct xyz_mysql_t *mysql)
 
 int xyz_mysql_exec(struct xyz_mysql_t *mysql, int flag, char *sqlstring)
 {
-    char execstring[256] = {0};
+    char execstring[512] = {0};
 
     if(mysql == NULL || sqlstring == NULL) {
         return -1;
     }
 
-    mysql_real_escape_string(mysql->mysql, execstring, sqlstring, sizeof(execstring)-1); 
+    int len = mysql_real_escape_string(mysql->mysql, execstring, sqlstring, strlen(sqlstring)); 
 
-    if(mysql_real_query(mysql->mysql, execstring, strlen(execstring)) != 0) {
+    if(mysql_real_query(mysql->mysql, execstring, len) != 0) {
+        fprintf(stderr,"my query error :%s\n", mysql_error(mysql->mysql));
         return -1;
     }
 
@@ -99,6 +101,7 @@ int xyz_mysql_exec(struct xyz_mysql_t *mysql, int flag, char *sqlstring)
     }
 
     if (((mysql->mysql_res = mysql_store_result(mysql->mysql)) == NULL)) {
+        fprintf(stderr,"my store error :%s\n", mysql_error(mysql->mysql));
         return -1;
     }
 
@@ -113,6 +116,7 @@ int xyz_mysql_fetchrow(struct xyz_mysql_t *mysql)
 
     mysql->mysql_row = mysql_fetch_row(mysql->mysql_res); 
     if(mysql->mysql_row == NULL) {
+        fprintf(stderr,"my fetch error :%s\n", mysql_error(mysql->mysql));
         return -1;
     }
 
@@ -169,6 +173,7 @@ struct xyz_pgsql_t *xyz_pgsql_connect(char *host, int port, char *user, char *pa
 
     pgsql->pg_connect = PQconnectdb(connstring);
     if(PQstatus(pgsql->pg_connect) != CONNECTION_OK) {
+        fprintf(stderr,"pg conn error :%s\n", PQerrorMessage(pgsql->pg_connect));
         PQfinish(pgsql->pg_connect);
         return NULL;
     }
@@ -191,16 +196,17 @@ void xyz_pgsql_close(struct xyz_pgsql_t *pgsql)
 
 int xyz_pgsql_exec(struct xyz_pgsql_t *pgsql, int flag, char *sqlstring)
 {
-    char execstring[256] = {0};
+    char execstring[512] = {0};
 
     if(pgsql == NULL || sqlstring == NULL) {
         return -1;
     }
 
-    PQescapeString(execstring, sqlstring, sizeof(execstring)-1);
+    PQescapeString(execstring, sqlstring, strlen(sqlstring));
 
     pgsql->pg_result = PQexec(pgsql->pg_connect, execstring);
     if(PQresultStatus(pgsql->pg_result) != PGRES_TUPLES_OK) {
+        fprintf(stderr,"pg exec error :%s\n", PQerrorMessage(pgsql->pg_connect));
         PQclear(pgsql->pg_result);
         pgsql->pg_result = NULL;
         return -1;
@@ -238,10 +244,18 @@ void xyz_pgsql_fetchend(struct xyz_pgsql_t *pgsql)
 
 // end.
 
-#if 1
+#if 0
 
 int main(void)
 {
+    struct xyz_mysql_t *mysql = xyz_mysql_connect("localhost", 3306, "yuan", "yuanzc", "test");
+    xyz_mysql_exec(mysql, 0, "select * from test");
+    xyz_mysql_close(mysql);
+
+    struct xyz_pgsql_t *pgsql = xyz_pgsql_connect("localhost", 5432, "yuan", "yuanzc", "test");
+    xyz_pgsql_exec(pgsql, 0, "select * from test");
+    xyz_pgsql_close(pgsql);
+
     return 0;
 }
 
