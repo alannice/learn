@@ -54,14 +54,25 @@ int __xyz_event2_add(struct xyz_event2_t *ev2, int fd, int type)
 
     ev.data.fd = fd;
     if(type == XYZ_EVENT2_RD) {
-        ev.events=EPOLLIN;
-    } else if(type == XYZ_EVENT2_WT) {
-        ev.events=EPOLLOUT;
-    } else {
-        return -1;
-    }
+        ev.events = EPOLLIN;
+        if(ev2->nodes[fd].wttype == 1) {
+            ev.events |= EPOLLOUT;
+            return epoll_ctl(ev2->evfd, EPOLL_CTL_MOD, fd, &ev);
+        } else {
+            return epoll_ctl(ev2->evfd, EPOLL_CTL_ADD, fd, &ev);
+        }
+    } 
+    if(type == XYZ_EVENT2_WT) {
+        ev.events = EPOLLOUT;
+        if(ev2->nodes[fd].rdtype == 1) {
+            ev.events |= EPOLLIN;
+            return epoll_ctl(ev2->evfd, EPOLL_CTL_MOD, fd, &ev);
+        } else {
+            return epoll_ctl(ev2->evfd, EPOLL_CTL_ADD, fd, &ev);
+        }
+    } 
 
-    return epoll_ctl(ev2->evfd, EPOLL_CTL_ADD, fd, &ev);
+    return -1;
 }
 
 int __xyz_event2_del(struct xyz_event2_t *ev2, int fd, int type)
@@ -74,14 +85,23 @@ int __xyz_event2_del(struct xyz_event2_t *ev2, int fd, int type)
 
     ev.data.fd = fd;
     if(type == XYZ_EVENT2_RD) {
-        ev.events=EPOLLIN;
-    } else if(type == XYZ_EVENT2_WT) {
-        ev.events=EPOLLOUT;
-    } else {
-        return -1;
+        if(ev2.nodes[fd].wttype == 1) {
+            ev.events=EPOLLOUT;
+            return epoll_ctl(ev2->evfd, EPOLL_CTL_MOD, fd, &ev);
+        } else {
+            return epoll_ctl(ev2->evfd, EPOLL_CTL_DEL, fd, &ev);
+        }
     }
+    if(type == XYZ_EVENT2_WT) {
+        if(ev2.nodes[fd].rdtype == 1) {
+            ev.events=EPOLLIN;
+            return epoll_ctl(ev2->evfd, EPOLL_CTL_MOD, fd, &ev);
+        } else {
+            return epoll_ctl(ev2->evfd, EPOLL_CTL_DEL, fd, &ev);
+        }
+    } 
 
-    return epoll_ctl(ev2->evfd, EPOLL_CTL_DEL, fd, &ev);
+    return -1;
 }
 
 int __xyz_event2_run(struct xyz_event2_t *ev2)
