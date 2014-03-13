@@ -12,6 +12,7 @@
 #include <fcntl.h>
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
+#include <sys/select.h>
 
 #include "xyz_sock.h"
 
@@ -195,6 +196,60 @@ void xyz_sock_setopt(int sockfd)
 #endif // __linux__
 
 	return;
+}
+
+int xyz_sock_read_to(int sockfd, char *data, int len, int usec)
+{
+    fd_set rdset;
+    FD_ZERO(&rdset);
+    FD_SET(sockfd, &rdset);
+    struct timeval tv;
+    tv.tv_sec = usec/1000000;
+    tv.tv_usec = usec%1000000;
+
+    int n = select(sockfd+1, &rdset, NULL, NULL, &tv);
+    if(n == 0) {
+        return 0;
+    }
+    if(n == 1) {
+        return read(sockfd, data, len);
+    }
+    if(n == -1) {
+        if(errno == EINTR) {
+            return 0;
+        } else {
+            return -1;
+        }
+    }
+    
+    return 0;
+}
+
+int xyz_sock_write_to(int sockfd, char *data, int len, int usec)
+{
+    fd_set wtset;
+    FD_ZERO(&wtset);
+    FD_SET(sockfd, &wtset);
+    struct timeval tv;
+    tv.tv_sec = usec/1000000;
+    tv.tv_usec = usec%1000000;
+
+    int n = select(sockfd+1, NULL, &wtset, NULL, &tv);
+    if(n == 0) {
+        return 0;
+    }
+    if(n == 1) {
+        return write(sockfd, data, len);
+    }
+    if(n == -1) {
+        if(errno == EINTR) {
+            return 0;
+        } else {
+            return -1;
+        }
+    }
+
+    return 0;
 }
 
 //////////////////////////////////////////////////////////////////////////////
