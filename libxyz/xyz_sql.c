@@ -132,7 +132,7 @@ char *xyz_mysql_getfield(struct xyz_mysql_t *mysql, int idx)
     return mysql->mysql_row[idx];
 }
 
-void xyz_mysql_fetchend(struct xyz_mysql_t *mysql)
+void xyz_mysql_execend(struct xyz_mysql_t *mysql)
 {
     if(mysql == NULL || mysql->mysql_res == NULL) {
         return;
@@ -230,7 +230,7 @@ char *xyz_pgsql_fetchfield(struct xyz_pgsql_t *pgsql, int row, int col)
     return PQgetvalue(pgsql->pg_result, row, col);
 }
 
-void xyz_pgsql_fetchend(struct xyz_pgsql_t *pgsql)
+void xyz_pgsql_execend(struct xyz_pgsql_t *pgsql)
 {
     if(pgsql == NULL || pgsql->pg_result == NULL) {
         return;
