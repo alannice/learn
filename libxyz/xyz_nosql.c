@@ -1,3 +1,6 @@
+/*
+ * cc xyz_nosql.c -lmemcached -lhiredis -I/usr/local/include -L/usr/local/lib
+ */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -137,6 +140,86 @@ int xyz_mc_set(struct xyz_mc_t *mc, int timeout, char *key, char *value, size_t 
 
 //////////////////////////////////////////////////////////////////////////////
 
+#include <hiredis/hiredis.h>  
+
+/*
+typedef struct redisReply {
+    int type; // REDIS_REPLY_* 
+    long long integer; // The integer when type is REDIS_REPLY_INTEGER 
+    int len; // Length of string 
+    char *str; // Used for both REDIS_REPLY_ERROR and REDIS_REPLY_STRING 
+    size_t elements; // number of elements, for REDIS_REPLY_ARRAY 
+    struct redisReply **element; // elements vector for REDIS_REPLY_ARRAY 
+} redisReply;
+*/
+
+struct xyz_redis_t {
+    redisContext* ctx;
+    redisReply* reply;
+};
+
+struct xyz_redis_t *xyz_redis_connect(char *ip, int port, struct timeval *tv)
+{
+    struct xyz_redis_t *redis = malloc(sizeof(struct xyz_redis_t));
+    if(redis == NULL) {
+        return NULL;
+    }
+    
+    if(tv) {
+        redis->ctx = redisConnectWithTimeout(ip, port, *tv);
+    } else {
+        redis->ctx = redisConnect(ip, port);
+    }
+    if(redis->ctx == NULL) {
+        free(redis);
+        return NULL;
+    }
+
+    return redis;
+}
+
+void xyz_redis_destroy(struct xyz_redis_t *redis)
+{
+    if(redis) {
+        if(redis->reply) {
+            freeReplyObject(redis->reply);  
+        }
+        if(redis->ctx) {
+            redisFree(redis->ctx);  
+        }
+        free(redis);
+    }
+
+    return;
+}
+
+int xyz_redis_cmd(struct xyz_redis_t *redis, char *cmd)
+{
+    if(redis == NULL || cmd == NULL || strlen(cmd) == 0) {
+        return -1;
+    }
+
+    redis->reply = redisCommand(redis->ctx, cmd);
+    if(redis->reply == NULL) {
+        return -1;
+    }
+
+    return 0;
+}
+
+void xyz_redis_cmdend(struct xyz_redis_t *redis) 
+{
+    if(redis) {
+        freeReplyObject(redis->reply);
+        redis->reply = NULL;
+    }
+
+    return;
+}
+
+
+//////////////////////////////////////////////////////////////////////////////
+
 #if 0
 
 int main(void)
@@ -164,6 +247,21 @@ int main(void)
     printf("get value is %s\n", value);
 
     xyz_mc_destroy(mc);
+
+    struct xyz_resia_t *redis = xyz_redis_connect("127.0.0.1", 6379);
+    if(redis == NULL) {
+        printf("xyz_redis_connect() error\n");
+        return 1;
+    }
+
+    retval = xyz_redis_cmd(redis, "set aaa bbb");
+    if(retval == -1) {
+        printf("xyz_redis_cmd() error\n");
+        return 1;
+    }
+
+    xyz_redis_cmdend(redis);
+    xyz_redis_destroy(redis);
 
     return 0;
 }
