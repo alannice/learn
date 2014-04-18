@@ -1,6 +1,9 @@
 /**
- * mysql pgsql
- * cc xyz_sql.c `mysql_config --cflags` `mysql_config --libs` -I`pg_config --includedir` -L`pg_config --libdir` -lpq -lsqlite3
+ * mysql pgsql sqlite3
+ *
+ * cc -DUSE_MYSQL xyz_sql.c `mysql_config --cflags` `mysql_config --libs` 
+ * cc -DUSE_PGSQL xyz_sql.c -I`pg_config --includedir` -L`pg_config --libdir` -lpq 
+ * cc -DUSE_SQLITE3 xyz_sql.c -I/usr/local/include -L/usr/local/lib -lsqlite3
  *
  */
 
@@ -10,13 +13,14 @@
 
 #include "xyz_sql.h"
 
-/// MYSQL
+#ifdef USE_MYSQL
 
 /// mysql_config --cflags
 /// mysql_config --libs
 /// -lmysqlclient 
 
-#include <mysql/mysql.h>
+//#include <mysql/mysql.h>
+#include <mysql.h>
 
 #define XYZ_MYSQL_CHARSET      "utf8"
 #define XYZ_MYSQL_TIMEOUT      (8)
@@ -144,9 +148,11 @@ void xyz_mysql_execend(struct xyz_mysql_t *mysql)
     return;
 }
 
+#endif // USE_MYSQL
+
 //////////////////////////////////////////////////////////////////////////////
 
-// PGSQL
+#ifdef USE_PGSQL
 
 /// pg_config --includedir
 /// pg_config --libdir
@@ -242,8 +248,12 @@ void xyz_pgsql_execend(struct xyz_pgsql_t *pgsql)
     return;
 }
 
+#endif // USE_PGSQL
+
 ///////////////////////////////////////////////////////////////////////////////
-// sqllite
+
+#ifdef USE_SQLITE3
+
 // -lsqlite3
 
 #include <sqlite3.h>
@@ -307,7 +317,9 @@ int xyz_sqlite3_exec(struct xyz_sqlite3_t *sqlite3, char *sql, xyz_sqlite3_cb cb
 }
 
 
-// end.
+#endif // USE_SQLITE3
+
+//////////////////////////////////////////////////////////////////////////////
 
 #if 0
 
@@ -320,6 +332,10 @@ int main(void)
     struct xyz_pgsql_t *pgsql = xyz_pgsql_connect("localhost", 5432, "yuan", "yuanzc", "test");
     xyz_pgsql_exec(pgsql, 0, "select * from test");
     xyz_pgsql_close(pgsql);
+
+    struct xyz_sqlite3_t *sqlite3 = xyz_sqlite3_open("./sqlite3.db");
+    xyz_sqlite3_exec(sqlite3, "select * from test", NULL, NULL);
+    xyz_sqlite3_close(sqlite3);
 
     return 0;
 }
