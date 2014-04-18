@@ -13,6 +13,7 @@
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
 #include <sys/select.h>
+#include <sys/un.h> 
 
 #include "xyz_sock.h"
 
@@ -250,6 +251,68 @@ int xyz_sock_write_to(int sockfd, char *data, int len, int usec)
     }
 
     return 0;
+}
+
+int xyz_domain_listen(char *addr)
+{
+    int listen_fd;
+    int ret;
+    struct sockaddr_un srv_addr;
+
+    listen_fd=socket(AF_UNIX, SOCK_STREAM, IPPROTO_TCP); 
+    if(listen_fd < 0) {
+        perror("socket() error");
+        return -1;
+    }
+
+    strncpy(srv_addr.sun_path, addr, sizeof(srv_addr.sun_path)-1); 
+    ret=bind(listen_fd, (struct sockaddr*)&srv_addr, sizeof(srv_addr)); 
+    if(ret == -1)
+    { 
+        perror("bind() error"); 
+        close(listen_fd); 
+        unlink(addr); 
+        return -1; 
+    } 
+
+    ret=listen(listen_fd,1); 
+    if(ret == -1) {
+        perror("listen() error");
+        close(listen_fd);
+        unlink(addr);
+        return -1;
+    }
+
+    unlink(addr); 
+
+    return listen_fd;
+}
+
+int xyz_domain_connect(char *addr)
+{
+    int connect_fd;
+    struct sockaddr_un srv_addr; 
+    int ret;
+
+    connect_fd = socket(AF_UNIX, SOCK_STREAM, IPPROTO_TCP); 
+    if(connect_fd < 0)
+    { 
+        perror("socket() error");
+        return -1;
+    } 
+
+    srv_addr.sun_family=AF_UNIX; 
+    strncpy(srv_addr.sun_path, addr, sizeof(srv_addr.sun_path)-1);
+
+    ret=connect(connect_fd, (struct sockaddr*)&srv_addr, sizeof(srv_addr)); 
+    if(ret == -1)
+    { 
+        printf("connect() error");
+        close(connect_fd); 
+        return -1;
+    }
+
+    return connect_fd;
 }
 
 //////////////////////////////////////////////////////////////////////////////

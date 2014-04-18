@@ -14,5 +14,7 @@ int xyz_sock_connect(char *addr, int port, int type);
 int xyz_sock_peeraddr(int sockfd, char *addr, int len);
 int xyz_sock_read_to(int sockfd, char *data, int len, int usec);
 int xyz_sock_write_to(int sockfd, char *data, int len, int usec);
+int xyz_domain_listen(char *addr);
+int xyz_domain_connect(char *addr); 
 
 #endif // __XYZ_SOCKET_H__
