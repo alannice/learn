@@ -13,6 +13,8 @@
 
 #include "xyz_sql.h"
 
+///////////////////////////////////////////////////////////////////////////////
+
 #ifdef USE_MYSQL
 
 /// mysql_config --cflags
@@ -325,17 +327,23 @@ int xyz_sqlite3_exec(struct xyz_sqlite3_t *sqlite3, char *sql, xyz_sqlite3_cb cb
 
 int main(void)
 {
+#ifdef USE_MYSQL
     struct xyz_mysql_t *mysql = xyz_mysql_connect("localhost", 3306, "yuan", "yuanzc", "test");
     xyz_mysql_exec(mysql, 0, "select * from test");
     xyz_mysql_close(mysql);
+#endif 
 
+#ifdef USE_PGSQL
     struct xyz_pgsql_t *pgsql = xyz_pgsql_connect("localhost", 5432, "yuan", "yuanzc", "test");
     xyz_pgsql_exec(pgsql, 0, "select * from test");
     xyz_pgsql_close(pgsql);
+#endif 
 
+#ifdef USE_SQLITE3
     struct xyz_sqlite3_t *sqlite3 = xyz_sqlite3_open("./sqlite3.db");
     xyz_sqlite3_exec(sqlite3, "select * from test", NULL, NULL);
     xyz_sqlite3_close(sqlite3);
+#endif 
 
     return 0;
 }
