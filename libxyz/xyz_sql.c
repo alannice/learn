@@ -1,6 +1,6 @@
 /**
  * mysql pgsql
- * cc xyz_sql.c `mysql_config --cflags` `mysql_config --libs` -I`pg_config --includedir` -L`pg_config --libdir` -lpq
+ * cc xyz_sql.c `mysql_config --cflags` `mysql_config --libs` -I`pg_config --includedir` -L`pg_config --libdir` -lpq -lsqlite3
  *
  */
 
@@ -152,7 +152,7 @@ void xyz_mysql_execend(struct xyz_mysql_t *mysql)
 /// pg_config --libdir
 /// -lpq
 
-#include "libpq-fe.h"
+#include <libpq-fe.h>
 
 struct xyz_pgsql_t {
     PGconn *pg_connect;
@@ -241,6 +241,71 @@ void xyz_pgsql_execend(struct xyz_pgsql_t *pgsql)
 
     return;
 }
+
+///////////////////////////////////////////////////////////////////////////////
+// sqllite
+// -lsqlite3
+
+#include <sqlite3.h>
+
+struct xyz_sqlite3_t {
+    sqlite3 *db;
+};
+
+struct xyz_sqlite3_t *xyz_sqlite3_open(char *filename)
+{
+    struct xyz_sqlite3_t *sqlite3 = calloc(1, sizeof(struct xyz_sqlite3_t));
+    if(sqlite3 == NULL) {
+        return NULL;
+    }
+
+    int rc = sqlite3_open(filename, &sqlite3->db);
+    if(rc) {
+        printf("sqlite3_open() error, %s\n", sqlite3_errmsg(sqlite3->db));
+        return NULL;
+    }
+
+    return sqlite3;
+}
+
+void xyz_sqlite3_close(struct xyz_sqlite3_t *sqlite3)
+{
+    if(sqlite3) {
+        sqlite3_close(sqlite3->db);
+        sqlite3->db = NULL;
+        free(sqlite3);
+    }
+
+    return;
+}
+
+//typedef int (*xyz_sqlite3_cb)(void *userdata, int argc, char **argv, char **colname);
+static int xyz_sl3_cb(void *userdata, int argc, char **argv, char **colname)
+{
+    int i;
+    for(i=0; i<argc; i++) {
+       printf("col:%s, val:%s\n", colname[i], argv[i] ? argv[i] : "NULL");
+    }
+
+    return 0;
+}
+
+int xyz_sqlite3_exec(struct xyz_sqlite3_t *sqlite3, char *sql, xyz_sqlite3_cb cb, void *userdata)
+{
+    char *errmsg;
+    int rc;
+
+    rc = sqlite3_exec(sqlite3->db, sql, cb, userdata, &errmsg);
+    if(rc) {
+        printf("sqlite3_exec() error, %s\n", errmsg);
+        sqlite3_free(errmsg);
+
+        return -1;
+    }
+    
+    return 0;
+}
+
 
 // end.
 

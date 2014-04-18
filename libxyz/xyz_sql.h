@@ -19,5 +19,14 @@ int xyz_pgsql_exec(struct xyz_pgsql_t *pgsql, int flag, char *sqlstring);
 char *xyz_pgsql_fetchfield(struct xyz_pgsql_t *pgsql, int row, int col);
 void xyz_pgsql_execend(struct xyz_pgsql_t *pgsql);
 
+
+struct xyz_sqlite3_t;
+
+typedef int (*xyz_sqlite3_cb)(void *userdata, int argc, char **argv, char **colname);
+struct xyz_sqlite3_t *xyz_sqlite3_open(char *filename);
+void xyz_sqlite3_close(struct xyz_sqlite3_t *sqlite3); 
+int xyz_sqlite3_exec(struct xyz_sqlite3_t *sqlite3, char *sql, xyz_sqlite3_cb cb, void *userdata);
+
+
 #endif // __XYZ_SQL_H__
 
