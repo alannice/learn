@@ -127,7 +127,6 @@ int xyz_event_del(struct xyz_event_t *ev, int fd, int type)
 int xyz_event_run(struct xyz_event_t *ev)
 {
 	int num, i;
-	struct xyz_event_node_t *en;
 	struct timeval tv;
 
     if(ev == NULL) {
@@ -225,7 +224,6 @@ void xyz_event_loop(struct xyz_event_t *ev)
 void xyz_event_stat(struct xyz_event_t *ev)
 {
 	int i;
-	struct xyz_event_node_t *en;
 
     if(ev == NULL) {
         return;

@@ -142,7 +142,7 @@ int xyz_buf_read(struct xyz_buf_t *buf, int fd)
 
 int xyz_buf_write(struct xyz_buf_t *buf, int fd)
 {
-    int i, n;
+    int n;
 
     if (buf == NULL || fd < 0) {
         return -1;
@@ -267,7 +267,7 @@ int xyz_buf_sslread(struct xyz_buf_t *buf, struct xyz_ssl_t *ossl)
 
 int xyz_buf_sslwrite(struct xyz_buf_t *buf, struct xyz_ssl_t *ossl)
 {
-    int i, n;
+    int n;
 
     if (buf == NULL || ossl == NULL) {
         return -1;

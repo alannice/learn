@@ -13,7 +13,7 @@ AR=ar
 ARFLAGS= -crs
 
 CC=clang
-CFLAGS= -ggdb -fPIC
+CFLAGS= -ggdb -fPIC -Wall -Werror
 LDFLAGS=
 LIBS= -lssl
 
