@@ -14,6 +14,7 @@
 #include <arpa/inet.h>
 #include <sys/select.h>
 #include <sys/un.h> 
+#include <sys/stat.h>
 
 #include "xyz_sock.h"
 
@@ -182,23 +183,6 @@ int xyz_sock_peeraddr(int sockfd, char *addr, int len)
     return 0;
 }
 
-void xyz_sock_setopt(int sockfd)
-{
-	int keepalive = 1;
-	setsockopt(sockfd,SOL_SOCKET,SO_KEEPALIVE,(void*)(&keepalive), sizeof(int));
-
-#ifdef __linux__
-	int keepalive_time = 30;
-	setsockopt(sockfd, IPPROTO_TCP, TCP_KEEPIDLE,(void*)(&keepalive_time), sizeof(int));
-	int keepalive_intvl = 3;
-	setsockopt(sockfd, IPPROTO_TCP, TCP_KEEPINTVL,(void*)(&keepalive_intvl),sizeof(int));
-	int keepalive_probes= 3;
-	setsockopt(sockfd, IPPROTO_TCP, TCP_KEEPCNT,(void*)(&keepalive_probes),sizeof(int));
-#endif // __linux__
-
-	return;
-}
-
 int xyz_sock_read_to(int sockfd, char *data, int len, int usec)
 {
     fd_set rdset;
@@ -314,6 +298,67 @@ int xyz_domain_connect(char *addr)
 
     return connect_fd;
 }
+
+#ifdef __Linux__
+
+#include <sys/sendfile.h>
+
+int xyz_sock_sendfile(int sockfd, char *file)
+{
+    int fd;
+    struct stat statbuf;
+
+    if(stat(file, &statbuf) == -1) {
+        return -1;
+    }
+    
+    fd = open(file, O_RDONLY);
+    if(fd == -1) {
+        return -1;
+    }
+
+    if(statbuf.st_size != sendfile(sockfd, fd, 0, statbuf.st_size)) {
+        close(fd);
+        return -1;
+    }
+
+    close(fd);
+
+    return 0;
+}
+#endif // __Linux__
+
+#ifdef __FreeBSD__
+
+#include <sys/uio.h>
+
+int xyz_sock_sendfile(int sockfd, char *file)
+{
+    int fd;
+    off_t sndlen;
+    struct stat statbuf;
+
+    if(stat(file, &statbuf) == -1) {
+        return -1;
+    }
+    
+    fd = open(file, O_RDONLY);
+    if(fd == -1) {
+        return -1;
+    }
+
+    if(sendfile(fd, sockfd, 0, statbuf.st_size, NULL, &sndlen, 0) != 0) {
+        return -1;
+    }
+
+    if(sndlen != statbuf.st_size) {
+        return -1;
+    }
+
+    return 0;
+}
+#endif  // __FreeBSD__
+
 
 //////////////////////////////////////////////////////////////////////////////
 
