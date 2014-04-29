@@ -299,7 +299,7 @@ int xyz_domain_connect(char *addr)
     return connect_fd;
 }
 
-#ifdef __Linux__
+#ifdef __linux__
 
 #include <sys/sendfile.h>
 
@@ -326,7 +326,7 @@ int xyz_sock_sendfile(int sockfd, char *file)
 
     return 0;
 }
-#endif // __Linux__
+#endif // __linux__
 
 #ifdef __FreeBSD__
 
