@@ -49,6 +49,16 @@ struct xyz_mc_t *xyz_mc_connect(char *ip, int port)
         return NULL;
     }
 
+    memcached_behavior_set(mc->memc, MEMCACHED_BEHAVIOR_NO_BLOCK, 1);  
+    memcached_behavior_set(mc->memc, MEMCACHED_BEHAVIOR_CONNECT_TIMEOUT, 2*1000);
+    memcached_behavior_set(mc->memc, MEMCACHED_BEHAVIOR_RCV_TIMEOUT, 200*1000);
+    memcached_behavior_set(mc->memc, MEMCACHED_BEHAVIOR_SND_TIMEOUT, 200*1000);
+    memcached_behavior_set(mc->memc, MEMCACHED_BEHAVIOR_SERVER_FAILURE_LIMIT, 3);
+    memcached_behavior_set(mc->memc, MEMCACHED_BEHAVIOR_POLL_TIMEOUT, 2000);
+    memcached_behavior_set(mc->memc, MEMCACHED_BEHAVIOR_REMOVE_FAILED_SERVERS, 1);
+    memcached_behavior_set(mc->memc, MEMCACHED_BEHAVIOR_RETRY_TIMEOUT, 3);
+    memcached_behavior_set(mc->memc, MEMCACHED_BEHAVIOR_AUTO_EJECT_HOSTS, 1);
+
     mc->serversa = memcached_server_list_append(NULL, ip, port, &rc);
     if(rc != MEMCACHED_SUCCESS) {
         memcached_free(mc->memc);

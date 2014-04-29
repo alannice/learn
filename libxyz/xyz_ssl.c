@@ -1,7 +1,7 @@
 
 #include "xyz_ssl.h"
 
-struct xyz_ssl_t *xyz_ssl_create(int method, char *pemfile)
+struct xyz_ssl_t *xyz_ssl_create(int method, char *cafile, char *pemfile)
 {
     if(method != XYZ_SSLv23 && method != XYZ_TLSv1) {
         return NULL;
@@ -33,6 +33,12 @@ struct xyz_ssl_t *xyz_ssl_create(int method, char *pemfile)
         SSL_CTX_free(ossl->ctx);
         free(ossl);
         return NULL;
+    }
+
+    if(cafile) {
+        if(SSL_CTX_load_verify_locations(ossl->ctx, cafile, NULL) <= 0) {
+            ERR_print_errors_fp(stdout);
+        }
     }
 
     if(pemfile) {
@@ -94,6 +100,8 @@ int xyz_ssl_connect(struct xyz_ssl_t *ossl, int sockfd)
         return -1;
     }
 
+    SSL_CTX_set_verify(ossl->ctx, SSL_VERIFY_PEER, NULL);
+
     ossl->ssl = SSL_new(ossl->ctx);
     if(ossl->ssl == NULL) {
         return -1;
@@ -106,6 +114,10 @@ int xyz_ssl_connect(struct xyz_ssl_t *ossl, int sockfd)
         ossl->ssl = NULL;
 
         return -1;
+    }
+
+    if(SSL_get_verify_result(ossl->ssl) == X509_V_OK) {
+        ERR_print_errors_fp(stdout);
     }
 
     return 0;
