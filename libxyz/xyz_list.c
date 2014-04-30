@@ -306,7 +306,7 @@ void xyz_list_stat(struct xyz_list_t *list, int ex)
 
 	struct xyz_list_node_t *ln = list->head;
 	while(ln) {
-		printf("prev : %p , next : %p , data : %p:%s\n", ln->prev, ln->next, ln->data, ln->data);
+		printf("prev : %p , next : %p , data : %p:%s\n", ln->prev, ln->next, ln->data, (char *)ln->data);
 		ln = ln->next;
 	}
 
