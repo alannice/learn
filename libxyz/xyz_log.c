@@ -24,12 +24,24 @@ level:
     LOG_DEBUG
 */
 
+#include <string.h>
+#include <stdio.h>
 #include <stdarg.h>
 #include <syslog.h>
 
 #include "xyz_log.h"
 
-static int g_xyz_log_level;
+static int g_xyz_log_level = 6;
+static char g_xyz_log_tag[64] = {0};
+
+void xyz_log_tag(char *tag) 
+{
+    if(tag) {
+        snprintf(g_xyz_log_tag, sizeof(g_xyz_log_tag), "[%s]", tag);
+    }
+
+    return;
+}
 
 void xyz_log_open(const char* ident, int facility, int level)
 {
@@ -66,10 +78,12 @@ void xyz_log_close(void)
 #if 0
 int main(void)
 {
-	xyz_log_open("hello", LOG_MAIL, LOG_DEBUG);
+	xyz_log_open("hello", LOG_MAIL, LOG_INFO);
 
 	xyz_log_write(LOG_INFO, "write info");
 	xyz_log_write(LOG_DEBUG, "write debug");
+
+    // xyz_log_tag("tag");
 
 	LOGI("write info 2");
 	LOGD("write debug 2");
