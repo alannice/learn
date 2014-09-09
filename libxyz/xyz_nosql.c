@@ -11,6 +11,8 @@
 
 //////////////////////////////////////////////////////////////////////////////
 
+#ifdef USE_MC
+
 // memcached
 // cc xyz_nosql.c -lmemcached -I/usr/local/include -L/usr/local/lib
 
@@ -148,7 +150,11 @@ int xyz_mc_set(struct xyz_mc_t *mc, int timeout, char *key, char *value, size_t 
     return 0;
 }
 
+#endif // USE_MC
+
 //////////////////////////////////////////////////////////////////////////////
+
+#ifdef USE_REDIS
 
 #include <hiredis/hiredis.h>  
 
@@ -227,6 +233,7 @@ void xyz_redis_cmdend(struct xyz_redis_t *redis)
     return;
 }
 
+#endif // USE_REDIS
 
 //////////////////////////////////////////////////////////////////////////////
 
@@ -235,6 +242,8 @@ void xyz_redis_cmdend(struct xyz_redis_t *redis)
 int main(void)
 {
     int retval;
+
+#ifdef USE_MC   
 
     struct xyz_mc_t *mc = xyz_mc_connect("127.0.0.1", 11211);
     if(mc == NULL) {
@@ -258,6 +267,9 @@ int main(void)
 
     xyz_mc_destroy(mc);
 
+#endif // USE_MC
+#ifdef USE_REDIS
+
     struct xyz_resia_t *redis = xyz_redis_connect("127.0.0.1", 6379);
     if(redis == NULL) {
         printf("xyz_redis_connect() error\n");
@@ -272,6 +284,8 @@ int main(void)
 
     xyz_redis_cmdend(redis);
     xyz_redis_destroy(redis);
+
+#endif // USE_REDIS
 
     return 0;
 }
