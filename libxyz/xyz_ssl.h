@@ -21,5 +21,7 @@ struct xyz_ssl_t *xyz_ssl_create(int method, char *cafile, char *pemfile);
 int xyz_ssl_accept(struct xyz_ssl_t *ssl, int rfd, int wfd);  
 int xyz_ssl_connect(struct xyz_ssl_t *ssl, int sockfd);  
 void xyz_ssl_destroy(struct xyz_ssl_t *ssl);  
+int xyz_ssl_read(struct xyz_ssl_t *ossl, char *data, int len);
+int xyz_ssl_write(struct xyz_ssl_t *ossl, char *data, int len);
 
 #endif // __XYZ_SSL_H__

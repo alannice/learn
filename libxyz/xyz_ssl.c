@@ -36,27 +36,27 @@ struct xyz_ssl_t *xyz_ssl_create(int method, char *cafile, char *pemfile)
     }
 
     if(cafile) {
-        if(SSL_CTX_load_verify_locations(ossl->ctx, cafile, NULL) <= 0) {
+        if(SSL_CTX_load_verify_locations(ossl->ctx, cafile, NULL) != 1) {
             ERR_print_errors_fp(stdout);
         }
     }
 
     if(pemfile) {
-        if(SSL_CTX_use_certificate_file(ossl->ctx, pemfile, SSL_FILETYPE_PEM) <= 0) {
+        if(SSL_CTX_use_certificate_file(ossl->ctx, pemfile, SSL_FILETYPE_PEM) != 1) {
             ERR_print_errors_fp(stdout);
             SSL_CTX_free(ossl->ctx);
             free(ossl);
             return NULL;
         }
 
-        if(SSL_CTX_use_PrivateKey_file(ossl->ctx, pemfile, SSL_FILETYPE_PEM) <= 0) {
+        if(SSL_CTX_use_PrivateKey_file(ossl->ctx, pemfile, SSL_FILETYPE_PEM) != 1) {
             ERR_print_errors_fp(stdout);
             SSL_CTX_free(ossl->ctx);
             free(ossl);
             return NULL;
         }
 
-        if (!SSL_CTX_check_private_key(ossl->ctx)) {
+        if (SSL_CTX_check_private_key(ossl->ctx) != 1) {
             ERR_print_errors_fp(stdout);
             SSL_CTX_free(ossl->ctx);
             free(ossl);
@@ -87,7 +87,7 @@ int xyz_ssl_accept(struct xyz_ssl_t *ossl, int rfd, int wfd)
         SSL_shutdown(ossl->ssl);
         SSL_free(ossl->ssl);
         ossl->ssl = NULL;
-        
+
         return -1;
     }
 
@@ -140,5 +140,59 @@ void xyz_ssl_destroy(struct xyz_ssl_t *ossl)
     free(ossl);
 
     return;
+}
+
+int xyz_ssl_read(struct xyz_ssl_t *ossl, char *data, int len)
+{
+    int n;
+
+    if (ossl == NULL || data == NULL) {
+        return -1;
+    }
+    if (len == 0) {
+        return 0;
+    }
+
+    if(SSL_pending(ossl->ssl) <= 0) {
+        return 0;
+    }
+
+    n = SSL_read(ossl->ssl, data, len);
+    if (n < 0) {
+        int err = SSL_get_error(ossl->ssl, n);
+        if(err == SSL_ERROR_WANT_WRITE || err == SSL_ERROR_WANT_READ) {
+            return 0;
+        }
+        return -1;
+    } else if (n == 0) {
+        return -1;
+    }
+
+    return n;
+}
+
+int xyz_ssl_write(struct xyz_ssl_t *ossl, char *data, int len)
+{
+    int n;
+
+    if (ossl == NULL || data == NULL) {
+        return -1;
+    }
+    if(len == 0) {
+        return 0;
+    }
+
+    n = SSL_write(ossl->ssl, data, len);
+    if (n < 0) {
+        int err = SSL_get_error(ossl->ssl, n);
+        if(err == SSL_ERROR_WANT_WRITE || err == SSL_ERROR_WANT_READ) {
+            return 0;
+        }
+        return -1;
+    } else if (n == 0) {
+        return -1;
+    }
+
+    return n;
 }
 
