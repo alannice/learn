@@ -189,7 +189,11 @@ struct xyz_conf_t *xyz_conf_load(char *file)
 		return NULL;
 	}
 
-	return xyz_conf_read(fp);
+    struct xyz_conf_t *tmp = xyz_conf_read(fp);
+
+    close(fp);
+
+	return tmp;
 }
 
 void xyz_conf_destroy(struct xyz_conf_t *conf)
