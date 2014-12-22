@@ -55,7 +55,7 @@ void xyz_mpool_destroy(struct xyz_mpool_t *mp)
 	return;
 }
 
-int xyz_mpool_grow(struct xyz_mpool_t *mp)
+static int xyz_mpool_grow(struct xyz_mpool_t *mp)
 {
 	int i;
 
