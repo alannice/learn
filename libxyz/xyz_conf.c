@@ -6,7 +6,7 @@
 
 #include "xyz_conf.h"
 
-FILE *xyz_conf_open(char *file)
+static FILE *xyz_conf_open(char *file)
 {
 	FILE *fp;
 	char filepath[256];
@@ -64,7 +64,7 @@ FILE *xyz_conf_open(char *file)
 	return NULL;
 }
 
-char *xyz_conf_parse(char *line)
+static char *xyz_conf_parse(char *line)
 {
 	char *p;
 
@@ -91,7 +91,7 @@ char *xyz_conf_parse(char *line)
 	return p+1;
 }
 
-int xyz_conf_trim(char *line)
+static int xyz_conf_trim(char *line)
 {
 	char *d,*s;
 
@@ -118,7 +118,7 @@ int xyz_conf_trim(char *line)
 	return 0;
 }
 
-struct xyz_conf_t *xyz_conf_append(struct xyz_conf_t *conf, char *key, char *value)
+static struct xyz_conf_t *xyz_conf_append(struct xyz_conf_t *conf, char *key, char *value)
 {
 	if(key == NULL || strlen(key) == 0 || value == NULL || strlen(value) == 0) {
 		return conf;
@@ -146,7 +146,7 @@ struct xyz_conf_t *xyz_conf_append(struct xyz_conf_t *conf, char *key, char *val
 	return tmpconf;
 }
 
-struct xyz_conf_t *xyz_conf_read(FILE *fp)
+static struct xyz_conf_t *xyz_conf_read(FILE *fp)
 {
 	char line[512];
 	char *value;

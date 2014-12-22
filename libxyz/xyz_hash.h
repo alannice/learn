@@ -24,6 +24,7 @@ struct xyz_hash_t {
 	struct xyz_hash_list_t **list;
 };
 
+signed int bkdr_hash(char *str);
 struct xyz_hash_t *xyz_hash_create(int size);
 void xyz_hash_destroy(struct xyz_hash_t *hash);
 void *xyz_hash_get(struct xyz_hash_t *hash, char *key);
