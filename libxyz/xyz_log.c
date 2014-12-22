@@ -31,8 +31,8 @@ level:
 
 #include "xyz_log.h"
 
+char g_xyz_log_tag[64] = {0};
 static int g_xyz_log_level = 6;
-static char g_xyz_log_tag[64] = {0};
 
 void xyz_log_tag(char *tag) 
 {

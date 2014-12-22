@@ -4,6 +4,8 @@
 
 #include <syslog.h>
 
+extern char g_xyz_log_tag[];
+
 void xyz_log_tag(char *tag);
 void xyz_log_open(const char* ident, int facility, int level);
 void xyz_log_write(int level, const char* format, ...);

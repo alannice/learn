@@ -166,7 +166,7 @@ int xyz_hash_state(struct xyz_hash_t *hash)
 
 ////////////////////////////////////////////////////
 
-#if 1
+#if 0
 
 int main(void)
 {
