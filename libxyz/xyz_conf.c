@@ -232,21 +232,6 @@ const char *xyz_conf_string(struct xyz_conf_t *conf, char *key)
 	return NULL;
 }
 
-int xyz_conf_number(struct xyz_conf_t *conf, char *key)
-{
-    if(conf == NULL || key == NULL) {
-        return -999;
-    }
-	while(conf) {
-		if(strcmp(conf->key, key) == 0) {
-			return atoi(conf->value);
-		}
-		conf = conf->next;
-	}
-
-	return -999;
-}
-
 void xyz_conf_stat(struct xyz_conf_t *conf)
 {
 	printf("------ conf stat ------\n");
