@@ -13,21 +13,15 @@ typedef int (*xyz_ev_call)(void);
 struct xyz_event_node_t                                                                                          
 {                                                                                                                
     int fd;                                                                                                      
-    int rdtype;                                                                                                  
     xyz_ev_func rdfunc;                                                                                          
-    int wttype;                                                                                                  
     xyz_ev_func wtfunc;                                                                                          
     void *arg;                                                                                                   
 };                                                                                                               
                                                                                                                  
 struct xyz_event_t                                                                                               
 {                                                                                                                
-    int maxfd;                                                                                                   
     int stop;                                                                                                    
     int usec;                                                                                                    
-
-    fd_set rdset;                                                                                                
-    fd_set wtset;                                                                                                
 
     struct xyz_event_node_t array[XYZ_EVENT_FDMAX];                                                              
     xyz_ev_call call;                                                                                            
