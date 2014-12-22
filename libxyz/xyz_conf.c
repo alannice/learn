@@ -191,7 +191,7 @@ struct xyz_conf_t *xyz_conf_load(char *file)
 
     struct xyz_conf_t *tmp = xyz_conf_read(fp);
 
-    close(fp);
+    fclose(fp);
 
 	return tmp;
 }
