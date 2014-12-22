@@ -10,7 +10,7 @@
 
 #include "xyz_plugin.h"
 
-int xyz_plugin_add(struct xyz_plugin_t *plugin, struct xyz_plugin_node_t *node)
+static int xyz_plugin_add(struct xyz_plugin_t *plugin, struct xyz_plugin_node_t *node)
 {
     if(plugin == NULL || node == NULL) {
         return -1;
@@ -29,7 +29,7 @@ int xyz_plugin_add(struct xyz_plugin_t *plugin, struct xyz_plugin_node_t *node)
     return 0;
 }
 
-int xyz_plugin_scan(struct xyz_plugin_t *plugin)
+static int xyz_plugin_scan(struct xyz_plugin_t *plugin)
 {
     struct xyz_plugin_node_t *node;
     char path[256];
