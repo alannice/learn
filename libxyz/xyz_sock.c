@@ -1,3 +1,6 @@
+/*
+ * cc -o xyz_sock xyz_sock.c -D__XYZ_SOCK__
+ */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -362,7 +365,7 @@ int xyz_sock_sendfile(int sockfd, char *file)
 
 //////////////////////////////////////////////////////////////////////////////
 
-#if 0
+#ifdef __XYZ_SOCK__
 int main(int argc, char *argv[])
 {
 	int fd;
@@ -377,5 +380,5 @@ int main(int argc, char *argv[])
 
 	return 0;
 }
-#endif 
+#endif // __XYZ_SOCK__
 

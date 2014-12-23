@@ -1,3 +1,6 @@
+/*
+ * cc -o xyz_netmodel xyz_netmodel.c xyz_sock.c -lpthread -D__XYZ_NETMODEL__
+ */
 
 /*
  * 1, 迭代服务器: 接收到数据, 处理, 再收数据,再处理.
@@ -306,9 +309,7 @@ int xyz_netmodel_threadpool(int listenfd, int count, xyz_netmodel_func func)
 
 ///----------------------------------------------------------
 
-#if 0
-
-// cc xyz_netmodel.c xyz_sock.c -lpthread
+#ifdef __XYZ_NETMODEL__
 
 #include "xyz_sock.h"
 
@@ -368,5 +369,5 @@ int main(int argc, char *argv[])
     return 0;
 }
 
-#endif 
+#endif // __XYZ_NETMODEL__
 

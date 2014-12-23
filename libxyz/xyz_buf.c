@@ -1,3 +1,6 @@
+/*
+ * cc -o xyz_buf xyz_buf.c -D__XYZ_BUF__
+ */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -248,7 +251,7 @@ void xyz_buf_stat(struct xyz_buf_t *buf)
 
 //////////////////////////////////////////////////////////////////////////////
 
-#if 0
+#ifdef __XYZ_BUF__
 int main(void)
 {
     struct xyz_buf_t *buf;
@@ -265,5 +268,5 @@ int main(void)
 
     return 0;
 }
-#endif
+#endif // __XYZ_BUF__
 

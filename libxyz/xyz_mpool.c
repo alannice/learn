@@ -1,3 +1,6 @@
+/*
+ * cc -o xyz_mpool xyz_mpool.c -D__XYZ_MPOOL__
+ */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -157,7 +160,7 @@ void xyz_mpool_stat(struct xyz_mpool_t *mp, int v)
 
 /////////////////////////////////////////////////////////////////////////////
 
-#if 0
+#ifdef __XYZ_MPOOL__
 int main(void)
 {
 	struct xyz_mpool_t *mp;
@@ -192,5 +195,5 @@ int main(void)
 
 	return 0;
 }
-#endif 
+#endif  // __XYZ_MPOOL__
 

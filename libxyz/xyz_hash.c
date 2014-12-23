@@ -1,3 +1,6 @@
+/*
+ * cc -o xyz_hash xyz_hash.c -D__XYZ_HASH__
+ */
 
 #include "xyz_hash.h"
 
@@ -166,8 +169,7 @@ int xyz_hash_state(struct xyz_hash_t *hash)
 
 ////////////////////////////////////////////////////
 
-#if 0
-
+#ifdef __XYZ_HASH__ 
 int main(void)
 {
     struct xyz_hash_t *hash;
@@ -194,5 +196,5 @@ int main(void)
     return 0;
 }
 
-#endif // 0
+#endif // __XYZ_HASH__
 

@@ -1,3 +1,6 @@
+/*
+ * cc -o xyz_event xyz_event.c -D__XYZ_EVENT__
+ */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -237,7 +240,7 @@ void xyz_event_stat(struct xyz_event_t *ev)
 
 //////////////////////////////////////////////////////////////////////////////
 
-#if 0
+#ifdef __XYZ_EVENT__ 
 int xyz_event_test(int fd, void *arg)
 {
 	struct xyz_event_t *ev = arg;
@@ -263,5 +266,5 @@ int main(void)
     xyz_event_destroy(ev);
 	return 0;
 }
-#endif 
+#endif  // __XYZ_EVENT__
 

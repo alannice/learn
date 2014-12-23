@@ -1,3 +1,6 @@
+/*
+ * cc -o xyz_conf xyz_conf.c -D__XYZ_CONF__
+ */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -246,23 +249,28 @@ void xyz_conf_stat(struct xyz_conf_t *conf)
 
 //////////////////////////////////////////////////////////////////////////////
 
-#if 0
+#ifdef __XYZ_CONF__ 
 int main(int argc, char *argv[])
 {
+    if(argc != 2) {
+        printf("Usage:\n\t%s <file>\n", argv[0]);
+        exit(0);
+    }
+
     struct xyz_conf_t *conf=NULL;
-	if((conf=xyz_conf_load(argv[1])) == NULL) {
-		printf("conf load error\n");
-		return 0;
-	}
-	xyz_conf_stat(conf);
+    if((conf=xyz_conf_load(argv[1])) == NULL) {
+        printf("conf load error\n");
+        return 0;
+    }
+    xyz_conf_stat(conf);
 
-	conf=xyz_conf_append(conf, "hello", "world");
-	conf=xyz_conf_append(conf, "smail", "333");
-	xyz_conf_stat(conf);
+    conf=xyz_conf_append(conf, "hello", "world");
+    conf=xyz_conf_append(conf, "smail", "333");
+    xyz_conf_stat(conf);
 
-	xyz_conf_destroy(conf);
+    xyz_conf_destroy(conf);
 
-	return 0;
+    return 0;
 }
-#endif
+#endif // __XYZ_CONF__
 

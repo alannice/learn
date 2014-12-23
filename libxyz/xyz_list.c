@@ -1,4 +1,7 @@
-
+/*
+ * cc -o xyz_list xyz_list.c xyz_mpool.c -D__XYZ_LIST__
+ */
+ 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -319,7 +322,7 @@ void xyz_list_stat(struct xyz_list_t *list, int ex)
 
 //////////////////////////////////////////////////////////////////////////////
 
-#if 0
+#ifdef __XYZ_LIST__ 
 int main(void)
 {
 	char *str[8] = {"aaa", "bbb", "ccc", "ddd", "eee", "fff", "ggg"};
@@ -368,6 +371,6 @@ int main(void)
 	return 0;
 }
 
-#endif 
+#endif  // __XYZ_LIST__
 
 

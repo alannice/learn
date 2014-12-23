@@ -10,8 +10,6 @@
 #define XYZ_EVENT2_FDMAX 65535 
 
 struct xyz_event2_node_t {
-    int rdtype;
-    int wttype;
     xyz_ev2_func rdfunc;
     xyz_ev2_func wtfunc;
     void *rdarg;
@@ -55,7 +53,7 @@ int __xyz_event2_add(struct xyz_event2_t *ev2, int fd, int type)
     ev.data.fd = fd;
     if(type == XYZ_EVENT2_RD) {
         ev.events = EPOLLIN;
-        if(ev2->nodes[fd].wttype == 1) {
+        if(ev2->nodes[fd].wtfunc != NULL) {
             ev.events |= EPOLLOUT;
             return epoll_ctl(ev2->evfd, EPOLL_CTL_MOD, fd, &ev);
         } else {
@@ -64,7 +62,7 @@ int __xyz_event2_add(struct xyz_event2_t *ev2, int fd, int type)
     } 
     if(type == XYZ_EVENT2_WT) {
         ev.events = EPOLLOUT;
-        if(ev2->nodes[fd].rdtype == 1) {
+        if(ev2->nodes[fd].rdfunc != NULL) {
             ev.events |= EPOLLIN;
             return epoll_ctl(ev2->evfd, EPOLL_CTL_MOD, fd, &ev);
         } else {
@@ -85,7 +83,7 @@ int __xyz_event2_del(struct xyz_event2_t *ev2, int fd, int type)
 
     ev.data.fd = fd;
     if(type == XYZ_EVENT2_RD) {
-        if(ev2->nodes[fd].wttype == 1) {
+        if(ev2->nodes[fd].wtfunc != NULL) {
             ev.events=EPOLLOUT;
             return epoll_ctl(ev2->evfd, EPOLL_CTL_MOD, fd, &ev);
         } else {
@@ -93,7 +91,7 @@ int __xyz_event2_del(struct xyz_event2_t *ev2, int fd, int type)
         }
     }
     if(type == XYZ_EVENT2_WT) {
-        if(ev2->nodes[fd].rdtype == 1) {
+        if(ev2->nodes[fd].rdfunc != NULL) {
             ev.events=EPOLLIN;
             return epoll_ctl(ev2->evfd, EPOLL_CTL_MOD, fd, &ev);
         } else {
@@ -257,11 +255,9 @@ int xyz_event2_add(struct xyz_event2_t *ev2, int fd, int type, xyz_ev2_func func
     }
 
     if(type == XYZ_EVENT2_RD) {
-        ev2->nodes[fd].rdtype = 1;
         ev2->nodes[fd].rdfunc = func;
         ev2->nodes[fd].rdarg = arg;
     } else if(type == XYZ_EVENT2_WT) {
-        ev2->nodes[fd].wttype = 1;
         ev2->nodes[fd].wtfunc = func;
         ev2->nodes[fd].wtarg = arg;
     } else {
@@ -280,11 +276,9 @@ int xyz_event2_del(struct xyz_event2_t *ev2, int fd, int type)
     }
 
     if(type == XYZ_EVENT2_RD) {
-        ev2->nodes[fd].rdtype = 0;
         ev2->nodes[fd].rdfunc = NULL;
         ev2->nodes[fd].rdarg = NULL;
     } else if(type == XYZ_EVENT2_WT) {
-        ev2->nodes[fd].wttype = 0;
         ev2->nodes[fd].wtfunc = NULL;
         ev2->nodes[fd].wtarg = NULL;
     } else {
@@ -343,12 +337,12 @@ void xyz_event2_stat(struct xyz_event2_t *ev2)
         printf("call : %p\n", ev2->call);
 
         for(idx=0; idx<XYZ_EVENT2_FDMAX; idx++) {
-            if(ev2->nodes[idx].rdtype) {
+            if(ev2->nodes[idx].rdfunc != NULL) {
                 printf("\t[%d] rdfunc : %p\n", idx, ev2->nodes[idx].rdfunc);
                 printf("\t[%d] rdarg : %p\n", idx, ev2->nodes[idx].rdarg);
             }
 
-            if(ev2->nodes[idx].wttype) {
+            if(ev2->nodes[idx].wtfunc != NULL) {
                 printf("\t[%d] wtfunc : %p\n", idx, ev2->nodes[idx].wtfunc);
                 printf("\t[%d] wtarg : %p\n", idx, ev2->nodes[idx].wtarg);
             }

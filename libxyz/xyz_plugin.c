@@ -1,3 +1,6 @@
+/*
+ * cc -o xyz_plugin xyz_plugin.c -D__XYZ_PLUGIN__
+ */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -192,8 +195,9 @@ void xyz_plugin_state(struct xyz_plugin_t *plugin)
     return;
 }
 
-#if 0
+///////////////////////////////////////////////////////////////////////
 
+#ifdef __XYZ_PLUGIN__ 
 int main(void)
 {
     struct xyz_plugin_t *plug = xyz_plugin_init("plugin.test", "./plugin/");
@@ -210,36 +214,36 @@ int main(void)
 
     return 0;
 }
+/*
+ // test so code plugin_echo.c
+ // cc shared -o plugin_echo.so plugin_echo.c
 
-// test so code plugin_echo.c
-// cc shared -o plugin_echo.so plugin_echo.c
-//
-// #include <stdlib.h>
-// #include <stdio.h>
-// #include <string.h>
-// #include <unistd.h>
-//
-// int xyz_subplugin_init()
-// {
-//     printf("plug echo init\n");
-//
-//     return 0;
-// }
-//
-// int xyz_subplugin_proc(void *data, void *args)
-// {
-//     printf("plug echo proc : %s %s\n", data, args);
-//
-//     return 0;
-// }
-//
-// int xyz_subplugin_destroy()
-// {
-//     printf("plug echo destroy\n");
-//
-//     return 0;
-// }
-//
+ #include <stdlib.h>
+ #include <stdio.h>
+ #include <string.h>
+ #include <unistd.h>
 
-#endif 
+ int xyz_subplugin_init()
+ {
+     printf("plug echo init\n");
+
+     return 0;
+ }
+
+ int xyz_subplugin_proc(void *data, void *args)
+ {
+     printf("plug echo proc : %s %s\n", data, args);
+
+     return 0;
+ }
+
+ int xyz_subplugin_destroy()
+ {
+     printf("plug echo destroy\n");
+
+     return 0;
+ }
+*/
+
+#endif // __XYZ_PLUGIN__
 
