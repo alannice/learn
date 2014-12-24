@@ -1,3 +1,6 @@
+/*
+ * cc -o xyz_event2 xyz_event2.c -D__XYZ_EVENT2__
+ */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -250,7 +253,7 @@ void xyz_event2_destroy(struct xyz_event2_t *ev2)
 
 int xyz_event2_add(struct xyz_event2_t *ev2, int fd, int type, xyz_ev2_func func, void *arg)
 {
-    if(ev2 == NULL || fd < 0) {
+    if(ev2 == NULL || fd < 0 || func == NULL || fd >= XYZ_EVENT2_FDMAX-1) {
         return -1;
     }
 
@@ -271,7 +274,7 @@ int xyz_event2_add(struct xyz_event2_t *ev2, int fd, int type, xyz_ev2_func func
 
 int xyz_event2_del(struct xyz_event2_t *ev2, int fd, int type)
 {
-    if(ev2 == NULL || fd < 0) {
+    if(ev2 == NULL || fd < 0 || fd >= XYZ_EVENT2_FDMAX) {
         return -1;
     }
 
@@ -354,8 +357,7 @@ void xyz_event2_stat(struct xyz_event2_t *ev2)
 
 //////////////////////////////////////////////////////////////////////////////
 
-#if 0
-
+#ifdef __XYZ_EVENT2__ 
 int xyz_event2_test(int fd, void *arg)
 {
     struct xyz_event2_t *ev = arg;
@@ -387,6 +389,5 @@ int main(void)
     return 0;
 }
 
-
-#endif 
+#endif  // __XYZ_EVENT2__
 

@@ -46,7 +46,7 @@ int xyz_event_add(struct xyz_event_t *ev, int fd, int type, xyz_ev_func func, vo
 {
 	int i;
 
-	if(ev == NULL || fd < 0 || func == NULL || fd > 1024) {
+	if(ev == NULL || fd < 0 || func == NULL || fd >= 1024) {
 		return -1;
 	}
     if(type != XYZ_EVTYPE_RD && type != XYZ_EVTYPE_WT) {
@@ -91,7 +91,7 @@ int xyz_event_del(struct xyz_event_t *ev, int fd, int type)
 {
 	int i;
 
-    if(ev == NULL || fd < 0) {
+    if(ev == NULL || fd < 0 || fd >= 1024) {
         return -1;
     }
     if(type != XYZ_EVTYPE_RD && type != XYZ_EVTYPE_WT) {
