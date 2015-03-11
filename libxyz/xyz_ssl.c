@@ -94,33 +94,62 @@ int xyz_ssl_accept(struct xyz_ssl_t *ossl, int rfd, int wfd)
     return 0;
 }
 
-int xyz_ssl_connect(struct xyz_ssl_t *ossl, int sockfd)
+struct xyz_ssl_t *xyz_ssl_connect(int method, int sockfd)
 {
-    if(ossl == NULL || sockfd < 0) {
-        return -1;
+    if(sockfd < 0) {
+        return NULL;
     }
 
-    SSL_CTX_set_verify(ossl->ctx, SSL_VERIFY_PEER, NULL);
+    if(method != XYZ_SSLv23 && method != XYZ_TLSv1) {
+        return NULL;
+    }
+
+    struct xyz_ssl_t *ossl = malloc(sizeof(struct xyz_ssl_t));
+    if(ossl == NULL) {
+        return NULL;
+    }
+    bzero(ossl, sizeof(struct xyz_ssl_t));
+
+    ossl->method = method;
+
+    SSL_library_init();
+    OpenSSL_add_all_algorithms();
+    SSL_load_error_strings();
+
+    if(method == XYZ_SSLv23) {
+        ossl->ctx = SSL_CTX_new(SSLv23_client_method());
+    } else if(method == XYZ_TLSv1) {
+        ossl->ctx = SSL_CTX_new(TLSv1_client_method());
+    } else {
+        free(ossl);
+        return NULL;
+    }
+
+    if (ossl->ctx == NULL) {
+        ERR_print_errors_fp(stdout);
+        SSL_CTX_free(ossl->ctx);
+        free(ossl);
+        return NULL;
+    }
 
     ossl->ssl = SSL_new(ossl->ctx);
     if(ossl->ssl == NULL) {
-        return -1;
+        SSL_CTX_free(ossl->ctx);
+        free(ossl);
+        return NULL;
     }
 
     SSL_set_fd(ossl->ssl, sockfd);
     if (SSL_connect(ossl->ssl) == -1) {
         SSL_shutdown(ossl->ssl);
         SSL_free(ossl->ssl);
-        ossl->ssl = NULL;
+        SSL_CTX_free(ossl->ctx);
+        free(ossl);
 
-        return -1;
+        return NULL;
     }
 
-    if(SSL_get_verify_result(ossl->ssl) == X509_V_OK) {
-        ERR_print_errors_fp(stdout);
-    }
-
-    return 0;
+    return ossl;
 }
 
 void xyz_ssl_destroy(struct xyz_ssl_t *ossl)
