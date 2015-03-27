@@ -195,6 +195,10 @@ int xyz_sock_read_to(int sockfd, char *data, int len, int usec)
     tv.tv_sec = usec/1000000;
     tv.tv_usec = usec%1000000;
 
+    if(sockfd >= 1024) {
+        return read(sockfd, data, len);
+    }
+
     int n = select(sockfd+1, &rdset, NULL, NULL, &tv);
     if(n == 0) {
         return 0;
@@ -221,6 +225,10 @@ int xyz_sock_write_to(int sockfd, char *data, int len, int usec)
     struct timeval tv;
     tv.tv_sec = usec/1000000;
     tv.tv_usec = usec%1000000;
+
+    if(sockfd >= 1024) {
+        return write(sockfd, data, len);
+    }
 
     int n = select(sockfd+1, NULL, &wtset, NULL, &tv);
     if(n == 0) {

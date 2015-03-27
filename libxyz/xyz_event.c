@@ -122,7 +122,7 @@ int xyz_event_run(struct xyz_event_t *ev)
 	int num, i;
 	struct timeval tv;
     fd_set rdset, wtset;
-    int maxfd;
+    int maxfd = 0;
 
     if(ev == NULL) {
         return -1;
