@@ -2,6 +2,7 @@
 #ifndef __XYZ_SSL_H__
 #define __XYZ_SSL_H__
 
+#include <unistd.h>
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 
